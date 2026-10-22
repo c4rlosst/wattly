@@ -35,6 +35,50 @@ void main() {
     expect(estimatedKwh(entries, DateTime(2026, 10, 1)), 1);
   });
 
+  group('usageBuckets', () {
+    UsageEntry at(DateTime t, double kwh) => UsageEntry(
+        id: t.toString(),
+        time: t,
+        label: 'x',
+        watts: kwh * 1000,
+        hours: 1,
+        ratePerKwh: 0);
+    final wed = DateTime(2026, 10, 21, 15, 30); // a Wednesday
+
+    test('today splits into four 6-hour blocks', () {
+      final b = usageBuckets(
+          [at(DateTime(2026, 10, 21, 2), 1), at(DateTime(2026, 10, 21, 14), 2)],
+          Period.today,
+          wed);
+      expect(b.map((x) => x.kwh), [1, 0, 2, 0]);
+      expect(b.indexWhere((x) => x.isCurrent), 2);
+    });
+
+    test('week has one bar per weekday and ignores earlier weeks', () {
+      final b = usageBuckets([
+        at(DateTime(2026, 10, 19, 9), 1), // Monday
+        at(DateTime(2026, 10, 21, 9), 3), // Wednesday
+        at(DateTime(2026, 10, 18, 9), 9), // previous Sunday: excluded
+      ], Period.week, wed);
+      expect(b.length, 7);
+      expect(b[0].kwh, 1);
+      expect(b[2].kwh, 3);
+      expect(b.fold<double>(0, (s, x) => s + x.kwh), 4);
+      expect(b.indexWhere((x) => x.isCurrent), 2);
+    });
+
+    test('month has one bar per week of the month', () {
+      final b = usageBuckets(
+          [at(DateTime(2026, 10, 3), 1), at(DateTime(2026, 10, 21), 2)],
+          Period.month,
+          wed);
+      expect(b.length, 5); // October has 31 days
+      expect(b[0].kwh, 1);
+      expect(b[2].kwh, 2);
+      expect(b.indexWhere((x) => x.isCurrent), 2);
+    });
+  });
+
   group('meteredKwh', () {
     MeterReading r(DateTime t, double kwh) =>
         MeterReading(id: t.toString(), time: t, kwh: kwh);

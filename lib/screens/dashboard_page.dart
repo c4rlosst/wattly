@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../calc.dart';
 import '../format.dart';
 import '../store.dart';
+import '../theme.dart';
+import '../widgets.dart';
+import 'add_usage_sheet.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.store});
@@ -19,8 +22,9 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
-    final theme = Theme.of(context);
+    final p = Palette.of(context);
     final from = periodStart(_period, DateTime.now());
+    final hasRate = store.ratePerKwh > 0;
 
     final estimated = store.estimatedKwhSince(from);
     final estimatedCost = store.estimatedCostSince(from);
@@ -28,101 +32,176 @@ class _DashboardPageState extends State<DashboardPage> {
 
     // Prefer the real meter when it has data; otherwise fall back to estimates.
     final headlineKwh = metered ?? estimated;
-    final headlineCost = metered != null
-        ? metered * store.ratePerKwh
-        : estimatedCost;
-    final headlineSource = metered != null ? 'From meter readings' : 'Estimated from your devices';
+    final headlineCost =
+        metered != null ? metered * store.ratePerKwh : estimatedCost;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      children: [
-        SegmentedButton<Period>(
-          segments: [
-            for (final p in Period.values)
-              ButtonSegment(value: p, label: Text(p.label)),
-          ],
-          selected: {_period},
-          onSelectionChanged: (s) => setState(() => _period = s.first),
+    return CustomScrollView(
+      slivers: [
+        largeTitleBar(
+          context,
+          'Usage',
+          trailing: AddButton(
+              onPressed: () => showAddUsageSheet(context, store)),
         ),
-        const SizedBox(height: 16),
-        Card(
-          color: theme.colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_period.label,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer)),
-                const SizedBox(height: 8),
-                Text(
-                  formatKwh(headlineKwh),
-                  style: theme.textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onPrimaryContainer,
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          sliver: SliverList.list(
+            children: [
+              Segmented<Period>(
+                value: _period,
+                options: const {
+                  Period.today: 'Today',
+                  Period.week: 'Week',
+                  Period.month: 'Month',
+                },
+                onChanged: (v) => setState(() => _period = v),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                decoration: BoxDecoration(
+                  color: p.card,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_period.label.toUpperCase(),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.4,
+                            color: p.secondary)),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(formatKwhValue(headlineKwh),
+                            style: TextStyle(
+                                fontSize: 56,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -1.5,
+                                color: p.label,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ])),
+                        const SizedBox(width: 6),
+                        Text('kWh',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: p.secondary)),
+                      ],
+                    ),
+                    Text(
+                      hasRate
+                          ? '≈ ${formatMoney(store.currency, headlineCost)}'
+                          : 'Set your rate in Settings to see cost',
+                      style: TextStyle(
+                          fontSize: hasRate ? 20 : 15,
+                          fontWeight: FontWeight.w600,
+                          color: p.accentText),
+                    ),
+                    const SizedBox(height: 16),
+                    UsageBars(buckets: store.bucketsFor(_period)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: metered != null ? p.green : p.accent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            metered != null
+                                ? 'From meter readings'
+                                : 'Estimated from your devices',
+                            style:
+                                TextStyle(fontSize: 13, color: p.secondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _StatTile(
+                      title: 'Estimated',
+                      value: formatKwhValue(estimated),
+                      subtitle: hasRate
+                          ? formatMoney(store.currency, estimatedCost)
+                          : 'devices × hours',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  store.ratePerKwh > 0
-                      ? '≈ ${formatMoney(store.currency, headlineCost)}'
-                      : 'Set your rate in Settings to see cost',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StatTile(
+                      title: 'Metered',
+                      value: metered == null ? '—' : formatKwhValue(metered),
+                      subtitle: metered == null
+                          ? 'needs 2 readings'
+                          : hasRate
+                              ? formatMoney(
+                                  store.currency, metered * store.ratePerKwh)
+                              : 'from meter',
+                    ),
+                  ),
+                ],
+              ),
+              if (store.latestReading != null) ...[
                 const SizedBox(height: 12),
-                Text(headlineSource,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer)),
+                Group(children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        IconTile(
+                            icon: CupertinoIcons.speedometer, color: p.accent),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Meter',
+                                  style: TextStyle(
+                                      fontSize: 17, color: p.label)),
+                              Text(
+                                  'Last reading: ${whenLabel(store.latestReading!.time, DateTime.now())}',
+                                  style: TextStyle(
+                                      fontSize: 13, color: p.secondary)),
+                            ],
+                          ),
+                        ),
+                        Text(formatKwh(store.latestReading!.kwh),
+                            style:
+                                TextStyle(fontSize: 17, color: p.secondary)),
+                      ],
+                    ),
+                  ),
+                ]),
               ],
-            ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                title: 'Estimated',
-                value: formatKwh(estimated),
-                subtitle: store.ratePerKwh > 0
-                    ? formatMoney(store.currency, estimatedCost)
-                    : 'devices × hours',
-              ),
-            ),
-            Expanded(
-              child: _StatCard(
-                title: 'Metered',
-                value: metered == null ? '—' : formatKwh(metered),
-                subtitle: metered == null
-                    ? 'needs 2 readings'
-                    : store.ratePerKwh > 0
-                        ? formatMoney(
-                            store.currency, metered * store.ratePerKwh)
-                        : 'from meter',
-              ),
-            ),
-          ],
-        ),
-        if (store.latestReading != null) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.speed),
-              title: Text('Meter: ${formatKwh(store.latestReading!.kwh)}'),
-              subtitle: Text(
-                  'Last reading ${formatDateTime(store.latestReading!.time)}'),
-            ),
-          ),
-        ],
       ],
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard(
+class _StatTile extends StatelessWidget {
+  const _StatTile(
       {required this.title, required this.value, required this.subtitle});
 
   final String title;
@@ -131,21 +210,40 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: theme.textTheme.labelLarge),
-            const SizedBox(height: 4),
-            Text(value,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            Text(subtitle, style: theme.textTheme.bodySmall),
-          ],
-        ),
+    final p = Palette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 13, color: p.secondary)),
+          const SizedBox(height: 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: p.label,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+              if (value != '—') ...[
+                const SizedBox(width: 4),
+                Text('kWh',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: p.secondary)),
+              ],
+            ],
+          ),
+          Text(subtitle, style: TextStyle(fontSize: 13, color: p.secondary)),
+        ],
       ),
     );
   }

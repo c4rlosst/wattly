@@ -118,6 +118,9 @@ class WattlyStore extends ChangeNotifier {
       ? null
       : (readings.toList()..sort((a, b) => a.time.compareTo(b.time))).last;
 
+  List<Bucket> bucketsFor(Period period) =>
+      usageBuckets(entries, period, DateTime.now());
+
   double estimatedKwhSince(DateTime from) => estimatedKwh(entries, from);
   double estimatedCostSince(DateTime from) => estimatedCost(entries, from);
   double? meteredKwhSince(DateTime from) => meteredKwh(readings, from);

@@ -1,7 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../store.dart';
-import 'add_usage_sheet.dart';
+import '../theme.dart';
 import 'dashboard_page.dart';
 import 'history_page.dart';
 import 'settings_page.dart';
@@ -21,8 +22,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
+    final p = Palette.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Wattly')),
+      backgroundColor: p.bg,
       body: ListenableBuilder(
         listenable: store,
         // Pages are created inside the builder so they rebuild on every change.
@@ -32,25 +35,28 @@ class _HomeScreenState extends State<HomeScreen> {
           _ => SettingsPage(store: store),
         },
       ),
-      floatingActionButton: _index == 2
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => showAddUsageSheet(context, store),
-              icon: const Icon(Icons.add),
-              label: const Text('Log usage'),
-            ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.bolt_outlined),
-              selectedIcon: Icon(Icons.bolt),
-              label: 'Dashboard'),
-          NavigationDestination(
-              icon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(
-              icon: Icon(Icons.tune), label: 'Settings'),
+      bottomNavigationBar: CupertinoTabBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        backgroundColor: p.card.withValues(alpha: 0.94),
+        activeColor: p.accentText,
+        inactiveColor: p.secondary,
+        border: Border(top: BorderSide(color: p.separator, width: 0.5)),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.bolt),
+            activeIcon: Icon(CupertinoIcons.bolt_fill),
+            label: 'Usage',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.clock),
+            activeIcon: Icon(CupertinoIcons.clock_fill),
+            label: 'History',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.slider_horizontal_3),
+            label: 'Settings',
+          ),
         ],
       ),
     );

@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../format.dart';
 import '../store.dart';
+import '../theme.dart';
+import '../widgets.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.store});
@@ -35,31 +38,37 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _addAppliance() async {
     final name = TextEditingController();
     final watts = TextEditingController();
-    final result = await showDialog<(String, double)>(
+    final result = await showCupertinoDialog<(String, double)>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => CupertinoAlertDialog(
         title: const Text('New device'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Name (e.g. Laptop)'),
-            ),
-            TextField(
-              controller: watts,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Power (watts)'),
-            ),
-          ],
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            children: [
+              CupertinoTextField(
+                controller: name,
+                autofocus: true,
+                placeholder: 'Name (e.g. Laptop)',
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 8),
+              CupertinoTextField(
+                controller: watts,
+                placeholder: 'Power (watts)',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          FilledButton(
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () {
               final w = parseNumber(watts.text);
               if (name.text.trim().isEmpty || w == null || w <= 0) return;
@@ -78,66 +87,108 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
-    final theme = Theme.of(context);
+    final p = Palette.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      children: [
-        Text('Electricity rate', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            SizedBox(
-              width: 80,
-              child: TextField(
-                controller: _currency,
-                decoration: const InputDecoration(labelText: 'Currency'),
-                onChanged: (v) => store.setCurrency(v.isEmpty ? '\$' : v),
+    return CustomScrollView(
+      slivers: [
+        largeTitleBar(context, 'Settings'),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          sliver: SliverList.list(
+            children: [
+              Group(
+                header: 'Electricity rate',
+                footer:
+                    'Check your dorm or utility bill. Past entries keep the rate they were logged with.',
+                children: [
+                  FormRow(
+                    label: 'Currency',
+                    trailing: SizedBox(
+                      width: 80,
+                      child: NumberField(
+                        controller: _currency,
+                        hint: '\$',
+                        keyboardType: TextInputType.text,
+                        onChanged: (v) =>
+                            store.setCurrency(v.isEmpty ? '\$' : v),
+                      ),
+                    ),
+                  ),
+                  FormRow(
+                    label: 'Price per kWh',
+                    trailing: SizedBox(
+                      width: 120,
+                      child: NumberField(
+                        controller: _rate,
+                        hint: '0.00',
+                        onChanged: (v) => store.setRate(parseNumber(v) ?? 0),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _rate,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Price per kWh',
-                  helperText: 'Check your dorm or utility bill',
+              const SizedBox(height: 24),
+              Group(
+                header: 'My devices',
+                footer: store.appliances.isEmpty
+                    ? 'Save a device’s wattage once, then just pick it when logging.'
+                    : 'Swipe left on a device to remove it.',
+                children: [
+                  for (final a in store.appliances)
+                    Dismissible(
+                      key: ValueKey(a.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: CupertinoColors.systemRed,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 24),
+                        child: const Icon(CupertinoIcons.delete,
+                            color: Colors.white),
+                      ),
+                      onDismissed: (_) => store.removeAppliance(a.id),
+                      child: ColoredBox(
+                        color: p.card,
+                        child: FormRow(
+                          label: a.name,
+                          trailing: Text('${a.watts.toStringAsFixed(0)} W',
+                              style: TextStyle(
+                                  fontSize: 17, color: p.secondary)),
+                        ),
+                      ),
+                    ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _addAppliance,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Icon(CupertinoIcons.add_circled,
+                                size: 22, color: p.accentText),
+                            const SizedBox(width: 12),
+                            Text('Add device',
+                                style: TextStyle(
+                                    fontSize: 17, color: p.accentText)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Group(children: [
+                FormRow(
+                  label: 'Data stays on this phone',
+                  trailing:
+                      Icon(CupertinoIcons.check_mark, size: 20, color: p.green),
                 ),
-                onChanged: (v) => store.setRate(parseNumber(v) ?? 0),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-                child: Text('My devices', style: theme.textTheme.titleMedium)),
-            TextButton.icon(
-              onPressed: _addAppliance,
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
-            ),
-          ],
-        ),
-        if (store.appliances.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-                'Save the wattage of your laptop, fan, mini-fridge, etc. once, then just pick them when logging.'),
+              ]),
+            ],
           ),
-        for (final a in store.appliances)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(a.name),
-            subtitle: Text('${a.watts.toStringAsFixed(0)} W'),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => store.removeAppliance(a.id),
-            ),
-          ),
+        ),
       ],
     );
   }

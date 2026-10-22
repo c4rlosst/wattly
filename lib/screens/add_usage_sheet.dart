@@ -1,15 +1,24 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../calc.dart';
 import '../format.dart';
 import '../models.dart';
 import '../store.dart';
+import '../theme.dart';
+import '../widgets.dart';
 
 Future<void> showAddUsageSheet(BuildContext context, WattlyStore store) {
+  final p = Palette.of(context);
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     showDragHandle: true,
+    backgroundColor: p.bg,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
     builder: (context) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: _AddUsageSheet(store: store),
@@ -49,18 +58,68 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   }
 
   Future<void> _pickTime() async {
-    final date = await showDatePicker(
+    var picked = _time;
+    final latest = DateTime.now().add(const Duration(minutes: 1));
+    await showCupertinoModalPopup<void>(
       context: context,
-      initialDate: _time,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      builder: (ctx) {
+        final p = Palette.of(ctx);
+        return Container(
+          height: 300,
+          color: p.card,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Done',
+                      style: TextStyle(color: p.accentText)),
+                ),
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.dateAndTime,
+                  initialDateTime: _time.isAfter(latest) ? latest : _time,
+                  maximumDate: latest,
+                  onDateTimeChanged: (d) => picked = d,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(
-        context: context, initialTime: TimeOfDay.fromDateTime(_time));
-    if (time == null) return;
-    setState(() => _time = DateTime(
-        date.year, date.month, date.day, time.hour, time.minute));
+    if (mounted) setState(() => _time = picked);
+  }
+
+  Future<void> _pickAppliance() async {
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _selectAppliance(null);
+            },
+            child: const Text('Custom device'),
+          ),
+          for (final a in widget.store.appliances)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _selectAppliance(a);
+              },
+              child: Text('${a.name} (${a.watts.toStringAsFixed(0)} W)'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
   }
 
   void _selectAppliance(Appliance? a) {
@@ -69,6 +128,9 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
       if (a != null) {
         _name.text = a.name;
         _watts.text = a.watts.toString();
+      } else {
+        _name.clear();
+        _watts.clear();
       }
     });
   }
@@ -103,125 +165,227 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
+    final p = Palette.of(context);
+    final now = DateTime.now();
+    final custom = _appliance == null;
+
     final watts = parseNumber(_watts.text);
     final hours = parseNumber(_hours.text);
-    final preview = (_mode == _Mode.device && watts != null && hours != null)
-        ? wattHoursToKwh(watts, hours)
-        : null;
+    final reading = parseNumber(_reading.text);
+    final last = store.latestReading;
+
+    double? addKwh;
+    String? caption;
+    String label = 'This will add';
+    if (_mode == _Mode.device) {
+      if (watts != null && hours != null) {
+        addKwh = wattHoursToKwh(watts, hours);
+        caption = '${watts.toStringAsFixed(0)} W × $hours h ÷ 1000';
+      }
+    } else {
+      label = 'Since last reading';
+      if (reading != null && last != null && reading >= last.kwh) {
+        addKwh = reading - last.kwh;
+        caption = '$reading − ${last.kwh}';
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SegmentedButton<_Mode>(
-            segments: const [
-              ButtonSegment(
-                  value: _Mode.device,
-                  icon: Icon(Icons.devices_other),
-                  label: Text('Device')),
-              ButtonSegment(
-                  value: _Mode.meter,
-                  icon: Icon(Icons.speed),
-                  label: Text('Meter reading')),
+          Row(
+            children: [
+              SizedBox(
+                width: 72,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Text('Cancel',
+                      style: TextStyle(fontSize: 17, color: p.accentText)),
+                ),
+              ),
+              Expanded(
+                child: Text('Log usage',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: p.label)),
+              ),
+              const SizedBox(width: 72),
             ],
-            selected: {_mode},
-            onSelectionChanged: (s) => setState(() {
-              _mode = s.first;
+          ),
+          const SizedBox(height: 16),
+          Segmented<_Mode>(
+            value: _mode,
+            options: const {
+              _Mode.device: 'Device',
+              _Mode.meter: 'Meter reading',
+            },
+            onChanged: (v) => setState(() {
+              _mode = v;
               _error = null;
             }),
           ),
-          const SizedBox(height: 16),
-          if (_mode == _Mode.device) ...[
-            if (store.appliances.isNotEmpty) ...[
-              DropdownButtonFormField<Appliance?>(
-                initialValue: _appliance,
-                decoration: const InputDecoration(labelText: 'Saved device'),
-                items: [
-                  const DropdownMenuItem(
-                      value: null, child: Text('Custom device')),
-                  for (final a in store.appliances)
-                    DropdownMenuItem(
-                        value: a,
-                        child: Text('${a.name} (${a.watts.toStringAsFixed(0)} W)')),
-                ],
-                onChanged: _selectAppliance,
-              ),
-              const SizedBox(height: 12),
-            ],
-            TextField(
-              controller: _name,
-              enabled: _appliance == null,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Device name'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _watts,
-                    enabled: _appliance == null,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Watts'),
-                    onChanged: (_) => setState(() {}),
+          const SizedBox(height: 20),
+          if (_mode == _Mode.device)
+            Group(children: [
+              if (store.appliances.isNotEmpty)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _pickAppliance,
+                  child: FormRow(
+                    label: 'Device',
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_appliance?.name ?? 'Custom',
+                            style: TextStyle(
+                                fontSize: 17, color: p.secondary)),
+                        const SizedBox(width: 6),
+                        Icon(CupertinoIcons.chevron_right,
+                            size: 14, color: p.secondary),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _hours,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Hours used'),
+              FormRow(
+                label: 'Name',
+                trailing: NumberField(
+                  key: const Key('name'),
+                  controller: _name,
+                  enabled: custom,
+                  hint: 'Laptop',
+                  keyboardType: TextInputType.text,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+              ),
+              FormRow(
+                label: 'Power (W)',
+                trailing: NumberField(
+                  key: const Key('watts'),
+                  controller: _watts,
+                  enabled: custom,
+                  hint: '65',
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              FormRow(
+                label: 'Hours used',
+                trailing: NumberField(
+                  key: const Key('hours'),
+                  controller: _hours,
+                  hint: '8',
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ])
+          else
+            Group(
+              footer: 'Enter the total shown on your dorm meter right now.',
+              children: [
+                FormRow(
+                  label: 'Meter (kWh)',
+                  trailing: NumberField(
+                    key: const Key('reading'),
+                    controller: _reading,
+                    hint: '4821.6',
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
               ],
             ),
-            if (_appliance == null)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _saveDevice,
-                onChanged: (v) => setState(() => _saveDevice = v ?? false),
-                title: const Text('Save this device for next time'),
-                controlAffinity: ListTileControlAffinity.leading,
+          const SizedBox(height: 12),
+          Group(children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _pickTime,
+              child: FormRow(
+                label: 'When',
+                trailing: Text(whenLabel(_time, now),
+                    style: TextStyle(fontSize: 17, color: p.secondary)),
               ),
-            if (preview != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '= ${formatKwh(preview)}'
-                  '${store.ratePerKwh > 0 ? ' · ${formatMoney(store.currency, preview * store.ratePerKwh)}' : ''}',
-                  style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (_mode == _Mode.device && custom)
+              FormRow(
+                label: 'Save for next time',
+                trailing: CupertinoSwitch(
+                  value: _saveDevice,
+                  activeTrackColor: p.green,
+                  onChanged: (v) => setState(() => _saveDevice = v),
                 ),
               ),
-          ] else
-            TextField(
-              controller: _reading,
-              autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Meter reading (kWh)',
-                helperText: 'The total shown on the meter right now',
-              ),
+          ]),
+          if (addKwh != null) ...[
+            const SizedBox(height: 20),
+            Text(label.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    color: p.secondary)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(formatKwhValue(addKwh),
+                    style: TextStyle(
+                        fontSize: 52,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -1.2,
+                        color: p.label)),
+                const SizedBox(width: 6),
+                Text('kWh',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: p.secondary)),
+              ],
             ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: _pickTime,
-            icon: const Icon(Icons.schedule),
-            label: Text(formatDateTime(_time)),
-          ),
+            if (store.ratePerKwh > 0)
+              Text('≈ ${formatMoney(store.currency, addKwh * store.ratePerKwh)}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: p.accentText)),
+            if (caption != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(caption,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: p.secondary)),
+              ),
+          ],
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(top: 16),
               child: Text(_error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 15, color: CupertinoColors.systemRed)),
             ),
-          FilledButton(onPressed: _save, child: const Text('Save')),
+          const SizedBox(height: 20),
+          GestureDetector(
+            key: const Key('save'),
+            onTap: _save,
+            child: Container(
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: p.accent,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text('Save',
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: p.onAccent)),
+            ),
+          ),
         ],
       ),
     );
