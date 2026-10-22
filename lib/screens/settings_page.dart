@@ -109,7 +109,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Flexible(
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 200),
                             child: Text(
                               currencyByCode(store.currencyCode)?.name ??
                                   'Custom (${store.currency})',
@@ -135,15 +136,12 @@ class _SettingsPageState extends State<SettingsPage> {
                             style:
                                 TextStyle(fontSize: 17, color: p.secondary)),
                         const SizedBox(width: 4),
-                        SizedBox(
+                        NumberField(
+                          key: const Key('rate'),
                           width: 80,
-                          child: NumberField(
-                            key: const Key('rate'),
-                            controller: _rate,
-                            hint: '0.00',
-                            onChanged: (v) =>
-                                store.setRate(parseNumber(v) ?? 0),
-                          ),
+                          controller: _rate,
+                          hint: '0.00',
+                          onChanged: (v) => store.setRate(parseNumber(v) ?? 0),
                         ),
                       ],
                     ),

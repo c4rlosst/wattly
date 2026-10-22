@@ -103,20 +103,19 @@ class FormRow extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 48),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
+        // The value takes its natural width and sits at the right edge; the
+        // label gets whatever is left and only truncates if it truly must.
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Flexible(
-              flex: 5,
               child: Text(label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 17, color: p.label)),
             ),
             const SizedBox(width: 16),
-            Expanded(
-              flex: 4,
-              child: Align(alignment: Alignment.centerRight, child: trailing),
-            ),
+            trailing,
           ],
         ),
       ),
@@ -132,6 +131,7 @@ class NumberField extends StatelessWidget {
     this.hint = '0',
     this.onChanged,
     this.enabled = true,
+    this.width = 140,
     this.keyboardType =
         const TextInputType.numberWithOptions(decimal: true),
     this.textCapitalization = TextCapitalization.none,
@@ -141,23 +141,27 @@ class NumberField extends StatelessWidget {
   final String hint;
   final ValueChanged<String>? onChanged;
   final bool enabled;
+  final double width;
   final TextInputType keyboardType;
   final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      onChanged: onChanged,
-      keyboardType: keyboardType,
-      textCapitalization: textCapitalization,
-      textAlign: TextAlign.end,
-      style: TextStyle(fontSize: 17, color: p.label),
-      decoration: InputDecoration.collapsed(
-        hintText: hint,
-        hintStyle: TextStyle(color: p.secondary.withValues(alpha: 0.6)),
+    return SizedBox(
+      width: width,
+      child: TextField(
+        controller: controller,
+        enabled: enabled,
+        onChanged: onChanged,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        textAlign: TextAlign.end,
+        style: TextStyle(fontSize: 17, color: p.label),
+        decoration: InputDecoration.collapsed(
+          hintText: hint,
+          hintStyle: TextStyle(color: p.secondary.withValues(alpha: 0.6)),
+        ),
       ),
     );
   }
