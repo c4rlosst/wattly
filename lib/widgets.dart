@@ -2,18 +2,48 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'calc.dart';
+import 'logo.dart';
 import 'theme.dart';
 
 /// iOS large-title navigation bar that collapses on scroll.
-Widget largeTitleBar(BuildContext context, String title, {Widget? trailing}) {
+Widget largeTitleBar(
+  BuildContext context,
+  String title, {
+  Widget? leading,
+  Widget? trailing,
+}) {
   final p = Palette.of(context);
   return CupertinoSliverNavigationBar(
     largeTitle: Text(title),
     automaticallyImplyLeading: false,
     backgroundColor: p.bg.withValues(alpha: 0.92),
     border: null,
+    leading: leading,
     trailing: trailing,
   );
+}
+
+/// Logo and name for the top-left of a navigation bar.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const WattlyLogo(size: 28),
+        const SizedBox(width: 8),
+        Text('Wattly',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                color: p.label)),
+      ],
+    );
+  }
 }
 
 /// Round accent "+" button used in navigation bars.

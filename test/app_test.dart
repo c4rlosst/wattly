@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wattly/logo.dart';
 import 'package:wattly/main.dart';
 import 'package:wattly/store.dart';
 
@@ -49,6 +50,25 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('Price per kWh'), findsOneWidget);
+  });
+
+  testWidgets('the logo shows in the Usage header and in Settings',
+      (tester) async {
+    tester.view.physicalSize = const Size(780, 1688);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final store = WattlyStore(await SharedPreferences.getInstance());
+    await tester.pumpWidget(WattlyApp(store: store));
+
+    expect(find.byType(WattlyLogo), findsOneWidget);
+    expect(find.text('Wattly'), findsOneWidget);
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WattlyLogo), findsOneWidget);
+    expect(find.text('Track your dorm’s electricity use.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('choosing the peso changes the currency symbol', (tester) async {

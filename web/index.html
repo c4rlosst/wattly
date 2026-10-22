@@ -34,8 +34,39 @@
 
   <title>Wattly</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Loading screen shown until Flutter draws its first frame. */
+    html, body { margin: 0; height: 100%; background: #F2F2F7; }
+    @media (prefers-color-scheme: dark) { html, body { background: #000; } }
+    #splash {
+      position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #splash svg { width: 96px; height: 96px; }
+  </style>
 </head>
 <body>
+  <div id="splash" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+      <defs>
+        <linearGradient id="splash-amber" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FFB63D"/>
+          <stop offset="1" stop-color="#FF9500"/>
+        </linearGradient>
+      </defs>
+      <rect width="256" height="256" rx="58" fill="url(#splash-amber)"/>
+      <circle cx="128" cy="132" r="84" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="16"/>
+      <circle cx="128" cy="132" r="84" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-dasharray="396 528" transform="rotate(-90 128 132)"/>
+      <path d="M88 112 L110 164 L128 130 L146 164 L168 112" fill="none" stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('splash');
+      if (splash) splash.remove();
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

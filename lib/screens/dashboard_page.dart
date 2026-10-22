@@ -40,6 +40,7 @@ class _DashboardPageState extends State<DashboardPage> {
         largeTitleBar(
           context,
           'Usage',
+          leading: const BrandMark(),
           trailing: AddButton(
               onPressed: () => showAddUsageSheet(context, store)),
         ),

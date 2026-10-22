@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../currencies.dart';
 import '../format.dart';
+import '../logo.dart';
 import '../store.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -207,6 +208,21 @@ class _SettingsPageState extends State<SettingsPage> {
                       Icon(CupertinoIcons.check_mark, size: 20, color: p.green),
                 ),
               ]),
+              const SizedBox(height: 32),
+              Column(
+                children: [
+                  const WattlyLogo(size: 64),
+                  const SizedBox(height: 12),
+                  Text('Wattly',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: p.label)),
+                  const SizedBox(height: 2),
+                  Text('Track your dorm’s electricity use.',
+                      style: TextStyle(fontSize: 13, color: p.secondary)),
+                ],
+              ),
             ],
           ),
         ),
