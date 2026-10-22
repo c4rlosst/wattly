@@ -1,10 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../currencies.dart';
 import '../format.dart';
 import '../store.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'currency_picker.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.store});
@@ -17,7 +19,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _rate;
-  late final TextEditingController _currency;
 
   @override
   void initState() {
@@ -25,13 +26,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final s = widget.store;
     _rate = TextEditingController(
         text: s.ratePerKwh == 0 ? '' : s.ratePerKwh.toString());
-    _currency = TextEditingController(text: s.currency);
   }
 
   @override
   void dispose() {
     _rate.dispose();
-    _currency.dispose();
     super.dispose();
   }
 
@@ -101,28 +100,52 @@ class _SettingsPageState extends State<SettingsPage> {
                 footer:
                     'Check your dorm or utility bill. Past entries keep the rate they were logged with.',
                 children: [
-                  FormRow(
-                    label: 'Currency',
-                    trailing: SizedBox(
-                      width: 80,
-                      child: NumberField(
-                        controller: _currency,
-                        hint: '\$',
-                        keyboardType: TextInputType.text,
-                        onChanged: (v) =>
-                            store.setCurrency(v.isEmpty ? '\$' : v),
+                  GestureDetector(
+                    key: const Key('currency-row'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showCurrencyPicker(context, store),
+                    child: FormRow(
+                      label: 'Currency',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              currencyByCode(store.currencyCode)?.name ??
+                                  'Custom (${store.currency})',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 17, color: p.secondary),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(CupertinoIcons.chevron_right,
+                              size: 14, color: p.secondary),
+                        ],
                       ),
                     ),
                   ),
                   FormRow(
                     label: 'Price per kWh',
-                    trailing: SizedBox(
-                      width: 120,
-                      child: NumberField(
-                        controller: _rate,
-                        hint: '0.00',
-                        onChanged: (v) => store.setRate(parseNumber(v) ?? 0),
-                      ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(store.currency,
+                            style:
+                                TextStyle(fontSize: 17, color: p.secondary)),
+                        const SizedBox(width: 4),
+                        SizedBox(
+                          width: 80,
+                          child: NumberField(
+                            key: const Key('rate'),
+                            controller: _rate,
+                            hint: '0.00',
+                            onChanged: (v) =>
+                                store.setRate(parseNumber(v) ?? 0),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'calc.dart';
+import 'currencies.dart';
 import 'models.dart';
 
 /// All app state, persisted on-device only (no accounts, no server).
@@ -18,6 +19,7 @@ class WattlyStore extends ChangeNotifier {
 
   double ratePerKwh = 0;
   String currency = '\$';
+  String currencyCode = 'USD';
   final List<Appliance> appliances = [];
   final List<UsageEntry> entries = [];
   final List<MeterReading> readings = [];
@@ -29,6 +31,10 @@ class WattlyStore extends ChangeNotifier {
       final data = jsonDecode(raw) as Map<String, dynamic>;
       ratePerKwh = (data['rate'] as num?)?.toDouble() ?? 0;
       currency = data['currency'] as String? ?? currency;
+      // Data saved before the picker existed has only a symbol.
+      currencyCode = data['currencyCode'] as String? ??
+          currencyBySymbol(currency)?.code ??
+          customCurrencyCode;
       appliances.addAll((data['appliances'] as List? ?? [])
           .map((e) => Appliance.fromJson(e as Map<String, dynamic>)));
       entries.addAll((data['entries'] as List? ?? [])
@@ -49,6 +55,7 @@ class WattlyStore extends ChangeNotifier {
       jsonEncode({
         'rate': ratePerKwh,
         'currency': currency,
+        'currencyCode': currencyCode,
         'appliances': appliances.map((e) => e.toJson()).toList(),
         'entries': entries.map((e) => e.toJson()).toList(),
         'readings': readings.map((e) => e.toJson()).toList(),
@@ -64,8 +71,10 @@ class WattlyStore extends ChangeNotifier {
     _save();
   }
 
-  void setCurrency(String value) {
-    currency = value;
+  /// Picks a listed currency, or a custom [symbol] when [code] is omitted.
+  void setCurrency(String symbol, {String code = customCurrencyCode}) {
+    currency = symbol;
+    currencyCode = code;
     _save();
   }
 
