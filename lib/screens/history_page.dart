@@ -22,7 +22,7 @@ class HistoryPage extends StatelessWidget {
         _Item(
           id: e.id,
           time: e.time,
-          icon: CupertinoIcons.device_laptop,
+          icon: CupertinoIcons.bolt_fill,
           color: p.accent,
           title: e.label,
           subtitle: '${e.watts.toStringAsFixed(0)} W × ${e.hours} h',
@@ -33,7 +33,7 @@ class HistoryPage extends StatelessWidget {
         _Item(
           id: r.id,
           time: r.time,
-          icon: CupertinoIcons.speedometer,
+          icon: CupertinoIcons.timer_fill,
           color: p.green,
           title: 'Meter reading',
           subtitle: formatTime(r.time),
@@ -65,7 +65,7 @@ class HistoryPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(CupertinoIcons.clock, size: 44, color: p.secondary),
+                    Icon(CupertinoIcons.clock_fill, size: 48, color: p.secondary),
                     const SizedBox(height: 12),
                     Text('Nothing logged yet',
                         style: TextStyle(
@@ -125,7 +125,7 @@ class _Row extends StatelessWidget {
         color: CupertinoColors.systemRed,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
-        child: const Icon(CupertinoIcons.delete, color: Colors.white),
+        child: const Icon(CupertinoIcons.trash_fill, color: Colors.white),
       ),
       onDismissed: (_) => item.onDelete(),
       child: ColoredBox(

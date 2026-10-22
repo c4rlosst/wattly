@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../calc.dart';
 import '../format.dart';
+import '../icons.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -244,8 +245,9 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
                             style: TextStyle(
                                 fontSize: 17, color: p.secondary)),
                         const SizedBox(width: 6),
-                        Icon(CupertinoIcons.chevron_right,
-                            size: 14, color: p.secondary),
+                        ChevronIcon(
+                            size: 14,
+                            color: p.secondary.withValues(alpha: 0.6)),
                       ],
                     ),
                   ),

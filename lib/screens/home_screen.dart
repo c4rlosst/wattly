@@ -42,19 +42,18 @@ class _HomeScreenState extends State<HomeScreen> {
         activeColor: p.accentText,
         inactiveColor: p.secondary,
         border: Border(top: BorderSide(color: p.separator, width: 0.5)),
+        // Filled glyphs for every tab; the selected one is tinted orange.
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bolt),
-            activeIcon: Icon(CupertinoIcons.bolt_fill),
+            icon: Icon(CupertinoIcons.bolt_fill),
             label: 'Usage',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.clock),
-            activeIcon: Icon(CupertinoIcons.clock_fill),
+            icon: Icon(CupertinoIcons.clock_fill),
             label: 'History',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.slider_horizontal_3),
+            icon: Icon(CupertinoIcons.gear_alt_fill),
             label: 'Settings',
           ),
         ],

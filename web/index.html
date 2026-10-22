@@ -38,13 +38,29 @@
   <style>
     /* Loading screen shown until Flutter draws its first frame. */
     html, body { margin: 0; height: 100%; background: #F2F2F7; }
-    @media (prefers-color-scheme: dark) { html, body { background: #000; } }
+    html.dark, html.dark body { background: #000; }
     #splash {
       position: fixed; top: 0; right: 0; bottom: 0; left: 0;
       display: flex; align-items: center; justify-content: center;
     }
     #splash svg { width: 96px; height: 96px; }
   </style>
+  <script>
+    // The app is light by default. Only use the dark loading screen when the
+    // saved Appearance is Dark, or Auto on a device that is set to dark.
+    (function () {
+      try {
+        var saved = JSON.parse(localStorage.getItem('flutter.wattly_v1'));
+        if (typeof saved === 'string') saved = JSON.parse(saved);
+        var mode = saved && saved.appearance;
+        if (mode === 'dark' ||
+            (mode === 'system' &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.className = 'dark';
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <div id="splash" aria-hidden="true">

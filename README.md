@@ -30,7 +30,7 @@ Wattly is made for students living in dorms who want to know how much electricit
 - **Save your devices.** Enter your laptop, mini-fridge or fan wattage once, then just pick it when logging.
 - **Your currency.** Pick the Philippine peso, other pesos, dollars, euros and more, or type your own symbol. Past entries keep the rate they were logged with.
 - **Private.** Everything is stored on your device. No account, no server, and it works offline.
-- **Light and dark mode**, in an iOS-style design.
+- **Light by default**, even on a computer set to dark mode, in an iOS-style design. Switch to Dark or Auto in Settings.
 
 ## Put it on your phone
 

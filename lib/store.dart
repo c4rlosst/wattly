@@ -7,6 +7,10 @@ import 'calc.dart';
 import 'currencies.dart';
 import 'models.dart';
 
+/// How the app picks light or dark. Light is the default on every device,
+/// including computers set to dark mode; [system] follows the device instead.
+enum Appearance { light, dark, system }
+
 /// All app state, persisted on-device only (no accounts, no server).
 class WattlyStore extends ChangeNotifier {
   WattlyStore(this._prefs) {
@@ -20,6 +24,7 @@ class WattlyStore extends ChangeNotifier {
   double ratePerKwh = 0;
   String currency = '\$';
   String currencyCode = 'USD';
+  Appearance appearance = Appearance.light;
   final List<Appliance> appliances = [];
   final List<UsageEntry> entries = [];
   final List<MeterReading> readings = [];
@@ -35,6 +40,8 @@ class WattlyStore extends ChangeNotifier {
       currencyCode = data['currencyCode'] as String? ??
           currencyBySymbol(currency)?.code ??
           customCurrencyCode;
+      appearance =
+          Appearance.values.asNameMap()[data['appearance']] ?? Appearance.light;
       appliances.addAll((data['appliances'] as List? ?? [])
           .map((e) => Appliance.fromJson(e as Map<String, dynamic>)));
       entries.addAll((data['entries'] as List? ?? [])
@@ -56,6 +63,7 @@ class WattlyStore extends ChangeNotifier {
         'rate': ratePerKwh,
         'currency': currency,
         'currencyCode': currencyCode,
+        'appearance': appearance.name,
         'appliances': appliances.map((e) => e.toJson()).toList(),
         'entries': entries.map((e) => e.toJson()).toList(),
         'readings': readings.map((e) => e.toJson()).toList(),
@@ -68,6 +76,11 @@ class WattlyStore extends ChangeNotifier {
 
   void setRate(double value) {
     ratePerKwh = value;
+    _save();
+  }
+
+  void setAppearance(Appearance value) {
+    appearance = value;
     _save();
   }
 

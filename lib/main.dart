@@ -18,12 +18,21 @@ class WattlyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Wattly',
-      debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
-      home: HomeScreen(store: store),
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) => MaterialApp(
+        title: 'Wattly',
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
+        // Light unless the student picks Dark or Auto in Settings.
+        themeMode: switch (store.appearance) {
+          Appearance.light => ThemeMode.light,
+          Appearance.dark => ThemeMode.dark,
+          Appearance.system => ThemeMode.system,
+        },
+        home: HomeScreen(store: store),
+      ),
     );
   }
 }

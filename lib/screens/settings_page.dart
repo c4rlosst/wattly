@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../currencies.dart';
 import '../format.dart';
+import '../icons.dart';
 import '../logo.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -122,8 +123,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Icon(CupertinoIcons.chevron_right,
-                              size: 14, color: p.secondary),
+                          ChevronIcon(
+                              size: 14,
+                              color: p.secondary.withValues(alpha: 0.6)),
                         ],
                       ),
                     ),
@@ -151,6 +153,26 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 24),
               Group(
+                header: 'Appearance',
+                footer:
+                    'Light is the default. Auto follows your phone or computer.',
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Segmented<Appearance>(
+                      value: store.appearance,
+                      options: const {
+                        Appearance.light: 'Light',
+                        Appearance.dark: 'Dark',
+                        Appearance.system: 'Auto',
+                      },
+                      onChanged: store.setAppearance,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Group(
                 header: 'My devices',
                 footer: store.appliances.isEmpty
                     ? 'Save a device’s wattage once, then just pick it when logging.'
@@ -164,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         color: CupertinoColors.systemRed,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 24),
-                        child: const Icon(CupertinoIcons.delete,
+                        child: const Icon(CupertinoIcons.trash_fill,
                             color: Colors.white),
                       ),
                       onDismissed: (_) => store.removeAppliance(a.id),
@@ -187,8 +209,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
-                            Icon(CupertinoIcons.add_circled,
-                                size: 22, color: p.accentText),
+                            Icon(CupertinoIcons.plus_circle_fill,
+                                size: 24, color: p.accentText),
                             const SizedBox(width: 12),
                             Text('Add device',
                                 style: TextStyle(
@@ -205,7 +227,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 FormRow(
                   label: 'Data stays on this phone',
                   trailing:
-                      Icon(CupertinoIcons.check_mark, size: 20, color: p.green),
+                      Icon(CupertinoIcons.checkmark_circle_fill,
+                          size: 22, color: p.green),
                 ),
               ]),
               const SizedBox(height: 32),

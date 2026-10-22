@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'calc.dart';
+import 'icons.dart';
 import 'logo.dart';
 import 'theme.dart';
 
@@ -64,8 +65,9 @@ class AddButton extends StatelessWidget {
         child: Container(
           width: 34,
           height: 34,
+          alignment: Alignment.center,
           decoration: BoxDecoration(color: p.accent, shape: BoxShape.circle),
-          child: Icon(CupertinoIcons.add, size: 20, color: p.onAccent),
+          child: PlusIcon(size: 16, color: p.onAccent),
         ),
       ),
     );
@@ -213,7 +215,7 @@ class IconTile extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(icon, size: 18, color: const Color(0xFF1C1C1E)),
+      child: Icon(icon, size: 20, color: const Color(0xFF1C1C1E)),
     );
   }
 }

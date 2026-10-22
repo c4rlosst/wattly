@@ -124,6 +124,54 @@ void main() {
     expect(custom.currencyCode, 'CUSTOM');
   });
 
+  testWidgets('the app is light even when the device is in dark mode',
+      (tester) async {
+    tester.view.physicalSize = const Size(780, 1688);
+    tester.view.devicePixelRatio = 2;
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(() {
+      tester.view.reset();
+      tester.platformDispatcher.clearPlatformBrightnessTestValue();
+    });
+
+    final store = WattlyStore(await SharedPreferences.getInstance());
+    await tester.pumpWidget(WattlyApp(store: store));
+    Brightness shown() =>
+        Theme.of(tester.element(find.byType(Scaffold).first)).brightness;
+    expect(shown(), Brightness.light);
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(store.appearance, Appearance.dark);
+    expect(shown(), Brightness.dark);
+
+    await tester.tap(find.text('Auto'));
+    await tester.pumpAndSettle();
+    expect(store.appearance, Appearance.system);
+    expect(shown(), Brightness.dark); // follows the device, which is dark
+
+    await tester.tap(find.text('Light'));
+    await tester.pumpAndSettle();
+    expect(store.appearance, Appearance.light);
+    expect(shown(), Brightness.light);
+  });
+
+  test('appearance defaults to light and is saved', () async {
+    SharedPreferences.setMockInitialValues({
+      'wattly_v1': '{"rate":0.2,"currency":"\$"}', // saved before the setting
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final first = WattlyStore(prefs);
+    expect(first.appearance, Appearance.light);
+
+    first.setAppearance(Appearance.dark);
+    expect(WattlyStore(prefs).appearance, Appearance.dark);
+    first.dispose();
+  });
+
   test('data survives a restart', () async {
     final prefs = await SharedPreferences.getInstance();
     final first = WattlyStore(prefs)

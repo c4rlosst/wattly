@@ -169,7 +169,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Row(
                       children: [
                         IconTile(
-                            icon: CupertinoIcons.speedometer, color: p.accent),
+                            icon: CupertinoIcons.timer_fill, color: p.accent),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(

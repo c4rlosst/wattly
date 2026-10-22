@@ -171,8 +171,8 @@ class _Row extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(CupertinoIcons.check_mark,
-                    size: 20, color: p.accentText),
+                Icon(CupertinoIcons.checkmark_alt,
+                    size: 24, color: p.accentText),
             ],
           ),
         ),
