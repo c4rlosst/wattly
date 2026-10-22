@@ -2,7 +2,7 @@
   <img src="branding/icon-512.png" alt="Wattly logo: a W inside a usage ring" width="140">
 </p>
 
-<h1 align="center">Wattly</h1>
+<h1 align="center">wattly</h1>
 
 <p align="center">
   Track your dorm's electricity use in kWh and cost.<br>
