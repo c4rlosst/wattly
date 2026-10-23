@@ -185,6 +185,13 @@ class _DashboardPageState extends State<DashboardPage> {
                                   'Last reading: ${whenLabel(latest.time, DateTime.now())}',
                                   style: TextStyle(
                                       fontSize: 13, color: p.secondary)),
+                              if (store.readings.length > 1)
+                                Text(
+                                    '+${formatKwh(latest.kwh - store.readings[store.readings.length - 2].kwh)} since previous',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: p.green)),
                             ],
                           ),
                         ),

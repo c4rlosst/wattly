@@ -134,9 +134,11 @@ class _HistoryPageState extends State<HistoryPage> {
 
 /// All entries and meter readings, newest first, grouped by calendar day.
 List<_Day> _group(WattlyStore store, DateTime now) {
+  final rs = store.readings; // oldest first
   final items = <_Item>[
     for (final e in store.entries) _Item.entry(e),
-    for (final r in store.readings) _Item.reading(r),
+    for (var i = 0; i < rs.length; i++)
+      _Item.reading(rs[i], i == 0 ? null : rs[i].kwh - rs[i - 1].kwh),
   ]..sort((a, b) => b.time.compareTo(a.time));
 
   final days = <_Day>[];
@@ -164,14 +166,17 @@ class _Item {
       : id = e.id,
         time = e.time,
         entry = e,
-        reading = null;
+        reading = null,
+        gain = null;
 
-  _Item.reading(MeterReading r)
+  _Item.reading(MeterReading r, this.gain)
       : id = r.id,
         time = r.time,
         entry = null,
         reading = r;
 
+  /// kWh used since the previous meter reading (null for the first one).
+  final double? gain;
   final String id;
   final DateTime time;
   final UsageEntry? entry;
@@ -229,6 +234,12 @@ class _Row extends StatelessWidget {
                             ? '${trimNumber(e.watts)} W × ${trimNumber(e.hours)} h'
                             : formatTime(r!.time),
                         style: TextStyle(fontSize: 13, color: p.secondary)),
+                    if (item.gain != null)
+                      Text('+${formatKwh(item.gain!)} since last reading',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: p.green)),
                   ],
                 ),
               ),
