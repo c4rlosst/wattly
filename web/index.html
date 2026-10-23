@@ -23,6 +23,19 @@
        areas, so full-bleed would put the tab bar under the home indicator. -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F5A623">
+  <script>
+    // iPhones report a pixel ratio of 3, so every frame is drawn at about 2.25x
+    // the pixels of a 2x screen. That is the main cost on a phone. Draw at 2x
+    // instead; the browser scales it to fit (slightly softer, much smoother).
+    // Must run before Flutter starts.
+    (function () {
+      if (window.devicePixelRatio > 2) {
+        try {
+          Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } });
+        } catch (e) {}
+      }
+    })();
+  </script>
 
   <!-- Open the connections the app is about to need (CanvasKit and the font
        come from Google's CDN) and start downloading the app's code now,
