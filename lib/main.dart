@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'frame_stats.dart';
 import 'screens/home_screen.dart';
 import 'store.dart';
 import 'theme.dart';
@@ -9,6 +10,7 @@ import 'widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  reportFrameTimes();
   final prefs = await SharedPreferences.getInstance();
   runApp(WattlyApp(store: WattlyStore(prefs)));
 }
