@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
 import 'store.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,8 @@ class WattlyApp extends StatelessWidget {
           Appearance.dark => ThemeMode.dark,
           Appearance.system => ThemeMode.system,
         },
+        builder: (context, child) =>
+            PhoneColumn(child: child ?? const SizedBox.shrink()),
         home: HomeScreen(store: store),
       ),
     );

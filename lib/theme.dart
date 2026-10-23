@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 class Palette {
   const Palette._({
     required this.bg,
+    required this.desk,
     required this.card,
     required this.label,
     required this.secondary,
@@ -15,9 +16,13 @@ class Palette {
     required this.onAccent,
     required this.green,
     required this.fill,
+    required this.thumb,
   });
 
   final Color bg;
+
+  /// Surround shown beside the phone-width column on wide windows.
+  final Color desk;
   final Color card;
   final Color label;
   final Color secondary;
@@ -29,8 +34,12 @@ class Palette {
   final Color green;
   final Color fill;
 
+  /// Selected segment in a segmented control.
+  final Color thumb;
+
   static const light = Palette._(
     bg: Color(0xFFF2F2F7),
+    desk: Color(0xFFE2E2E7),
     card: Colors.white,
     label: Color(0xFF1C1C1E),
     secondary: Color(0xFF6C6C70),
@@ -41,10 +50,12 @@ class Palette {
     onAccent: Color(0xFF1C1C1E),
     green: Color(0xFF34C759),
     fill: Color(0x1F767680),
+    thumb: Colors.white,
   );
 
   static const dark = Palette._(
     bg: Colors.black,
+    desk: Color(0xFF161618),
     card: Color(0xFF1C1C1E),
     label: Colors.white,
     secondary: Color(0xFF98989F),
@@ -55,6 +66,7 @@ class Palette {
     onAccent: Color(0xFF1C1C1E),
     green: Color(0xFF30D158),
     fill: Color(0x3D767680),
+    thumb: Color(0xFF636366),
   );
 
   static Palette of(BuildContext context) =>

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -5,6 +7,59 @@ import 'calc.dart';
 import 'icons.dart';
 import 'logo.dart';
 import 'theme.dart';
+
+/// Keeps the app phone-sized on wide screens (PCs, tablets): a centered column
+/// with the rest of the window left as a plain surround. Applied around the
+/// whole navigator, so sheets, pickers and dialogs stay inside the column.
+class PhoneColumn extends StatelessWidget {
+  const PhoneColumn({super.key, required this.child});
+
+  /// Widest the app gets, about the width of the largest phones.
+  static const maxWidth = 430.0;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final media = MediaQuery.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth > maxWidth;
+        return ColoredBox(
+          color: p.desk,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: maxWidth),
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                // Hairline edges, only when there is a surround to separate from.
+                decoration: BoxDecoration(
+                  border: wide
+                      ? Border.symmetric(
+                          vertical: BorderSide(color: p.separator, width: 0.5))
+                      : null,
+                ),
+                // Inside the column the app is phone-sized, so a landscape PC
+                // window still reads as portrait (the iOS large titles only
+                // expand in portrait).
+                child: MediaQuery(
+                  data: media.copyWith(
+                    size: Size(
+                      math.min(constraints.maxWidth, maxWidth),
+                      media.size.height,
+                    ),
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 /// iOS large-title navigation bar that collapses on scroll.
 Widget largeTitleBar(
@@ -241,7 +296,7 @@ class Segmented<T extends Object> extends StatelessWidget {
       child: CupertinoSlidingSegmentedControl<T>(
         groupValue: value,
         backgroundColor: p.fill,
-        thumbColor: p.card,
+        thumbColor: p.thumb,
         children: {
           for (final e in options.entries)
             e.key: Padding(

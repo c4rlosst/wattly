@@ -31,6 +31,7 @@ Wattly is made for students living in dorms who want to know how much electricit
 - **Your currency.** Pick the Philippine peso, other pesos, dollars, euros and more, or type your own symbol. Past entries keep the rate they were logged with.
 - **Private.** Everything is stored on your device. No account, no server, and it works offline.
 - **Light by default**, even on a computer set to dark mode, in an iOS-style design. Switch to Dark or Auto in Settings.
+- **Works on a PC too.** On a big screen the app shows as a centered phone-width column.
 
 ## Put it on your phone
 

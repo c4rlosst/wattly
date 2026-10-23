@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wattly/logo.dart';
 import 'package:wattly/main.dart';
 import 'package:wattly/store.dart';
+import 'package:wattly/widgets.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -122,6 +123,46 @@ void main() {
     final custom = WattlyStore(await SharedPreferences.getInstance());
     expect(custom.currency, 'kr');
     expect(custom.currencyCode, 'CUSTOM');
+  });
+
+  testWidgets('on a wide screen the app is a centered phone-width column',
+      (tester) async {
+    tester.view.physicalSize = const Size(2800, 1800); // 1400 x 900 logical
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final store = WattlyStore(await SharedPreferences.getInstance());
+    await tester.pumpWidget(WattlyApp(store: store));
+
+    final page = find.byType(Scaffold).first;
+    expect(tester.getSize(page).width, PhoneColumn.maxWidth);
+    expect(tester.getSize(page).height, 900);
+    expect(tester.getTopLeft(page).dx, (1400 - PhoneColumn.maxWidth) / 2);
+
+    // Inside the column the app is phone-sized and portrait, even though the
+    // window is landscape, so the large iOS titles still expand.
+    final inside = MediaQuery.of(tester.element(page));
+    expect(inside.size.width, PhoneColumn.maxWidth);
+    expect(inside.orientation, Orientation.portrait);
+
+    // Sheets stay inside the column as well.
+    await tester.tap(find.byKey(const Key('add-usage')));
+    await tester.pumpAndSettle();
+    expect(
+        tester.getSize(find.byType(BottomSheet)).width, PhoneColumn.maxWidth);
+  });
+
+  testWidgets('on a phone the app uses the full width', (tester) async {
+    tester.view.physicalSize = const Size(780, 1688); // 390 x 844 logical
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final store = WattlyStore(await SharedPreferences.getInstance());
+    await tester.pumpWidget(WattlyApp(store: store));
+
+    final page = find.byType(Scaffold).first;
+    expect(tester.getSize(page).width, 390);
+    expect(tester.getTopLeft(page).dx, 0);
   });
 
   testWidgets('the app is light even when the device is in dark mode',
