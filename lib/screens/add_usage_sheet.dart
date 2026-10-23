@@ -79,7 +79,7 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
     try {
       final text = await scanMeter(() {
         if (mounted) setState(() => _scanning = true);
-      });
+      }, last: widget.store.latestReading?.kwh);
       if (!mounted) return;
       if (text == null) return; // cancelled
       final v = readingFromScan(text, last: widget.store.latestReading?.kwh);
@@ -87,11 +87,11 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
         _scanning = false;
         if (v == null) {
           _scanNote =
-              'Couldn’t read a number from that photo. Try again closer and straight on, or type it.';
+              'Couldn’t read a number. Try again closer and straight on, or type it.';
         } else {
           _reading.text = trimNumber(v);
           _scanNote =
-              'Read ${trimNumber(v)} from the photo. Check it matches your meter.';
+              'Read ${trimNumber(v)} from the meter. Check it matches your meter.';
         }
       });
     } catch (_) {
@@ -382,7 +382,7 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
                                 : Icon(CupertinoIcons.camera_fill,
                                     size: 24, color: p.accentText),
                             const SizedBox(width: 12),
-                            Text(_scanning ? 'Reading photo…' : 'Scan meter with camera',
+                            Text(_scanning ? 'Reading…' : 'Scan meter',
                                 style: TextStyle(
                                     fontSize: 17, color: p.accentText)),
                           ],
