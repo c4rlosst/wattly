@@ -123,8 +123,7 @@
   // the area inside the frame about twice a second, shows what it sees, and
   // locks on when the same number comes up twice in a row. Resolves with the
   // number, '' if the shutter was pressed and nothing was read, or null if
-  // cancelled. Rejects if the camera can't be used; resolves undefined if the
-  // reader library couldn't be loaded.
+  // cancelled. Rejects if the camera can't be used.
   function liveScan(last) {
     var font = '-apple-system,BlinkMacSystemFont,"SF Pro Text",Roboto,sans-serif';
     return navigator.mediaDevices.getUserMedia({
@@ -140,10 +139,10 @@
         video.srcObject = stream;
         video.play();
 
-        var guide = el('div', 'position:absolute;left:7%;right:7%;top:24%;height:17%;border-radius:14px;' +
+        var guide = el('div', 'position:absolute;left:7%;right:7%;top:26%;height:11%;border-radius:14px;' +
           'border:3px solid rgba(255,255,255,.9);box-shadow:0 0 0 100vmax rgba(0,0,0,.55);transition:border-color .2s', root);
         var mark = el('div', 'position:absolute;display:none;border:2px solid #34C759;border-radius:6px;background:rgba(52,199,89,.15)', root);
-        var seen = el('div', 'position:absolute;left:0;right:0;top:calc(24% + 17% + 18px);text-align:center;color:#fff;' +
+        var seen = el('div', 'position:absolute;left:0;right:0;top:calc(26% + 11% + 18px);text-align:center;color:#fff;' +
           'font-size:34px;font-weight:700;letter-spacing:1px;text-shadow:0 1px 6px rgba(0,0,0,.6);min-height:42px', root);
         var cancel = el('div', 'position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 16px);color:#fff;' +
           'font-size:17px;padding:8px 6px;text-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer', root, 'Cancel');
@@ -161,7 +160,7 @@
         }
         var panel = el('div', 'position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:24px 24px 0 0;' +
           'padding:22px 24px calc(env(safe-area-inset-bottom,0px) + 22px);text-align:center;color:#111', root);
-        var status = el('div', 'font-size:19px;font-weight:600;margin-bottom:6px', panel, 'Line up the meter digits in the frame');
+        var status = el('div', 'font-size:19px;font-weight:600;margin-bottom:6px', panel, 'Fit the meter digits inside the frame');
         el('div', 'font-size:14px;color:#6b6b70;margin-bottom:16px', panel, 'It reads the number by itself, or tap the button.');
         var shutter = el('div', 'width:68px;height:68px;border-radius:50%;margin:0 auto;border:4px solid #FF9500;' +
           'box-sizing:border-box;padding:4px;cursor:pointer', panel);
@@ -192,27 +191,43 @@
           var c = document.createElement('canvas');
           c.width = Math.round(sw * k); c.height = Math.round(sh * k);
           c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
-          return { canvas: enhance(c), g: g, r: r };
+          var plain = document.createElement('canvas');
+          plain.width = c.width; plain.height = c.height;
+          plain.getContext('2d').drawImage(c, 0, 0);
+          return { canvas: enhance(c), plain: plain, g: g, r: r };
+        }
+
+        // Reads the frame: first as seven-segment digits (most meters), then,
+        // if the text reader has loaded, as ordinary text.
+        function read(f) {
+          var lcd = window.wattlyReadLcd && window.wattlyReadLcd(f.plain);
+          var num = lcd && bestNumber(lcd.text, last);
+          if (num) return Promise.resolve({ num: num, box: lcd.box });
+          if (!workerReady) return Promise.resolve({ num: null });
+          return getWorker().then(function (w) { return w.recognize(f.canvas); }).then(function (res) {
+            var n = bestNumber(res.data.text, last);
+            var word = n && (res.data.words || []).filter(function (w) { return w.text.indexOf(n) >= 0; })[0];
+            return { num: n, box: word && word.bbox && { x0: word.bbox.x0, y0: word.bbox.y0, x1: word.bbox.x1, y1: word.bbox.y1 } };
+          });
         }
 
         function recognise(manual) {
           var f = grab();
           if (!f) return Promise.resolve();
-          return getWorker().then(function (w) { return w.recognize(f.canvas); }).then(function (res) {
+          return read(f).then(function (res) {
             if (done) return;
-            var num = bestNumber(res.data.text, last);
+            var num = res.num;
             if (manual) { finish(num || ''); return; }
             seen.textContent = num || '';
             guide.style.borderColor = num ? '#34C759' : 'rgba(255,255,255,.9)';
             mark.style.display = 'none';
             if (!num) {
-              status.textContent = 'Line up the meter digits in the frame';
+              status.textContent = 'Fit the meter digits inside the frame';
               prev = null;
               return;
             }
-            var word = (res.data.words || []).filter(function (w) { return w.text.indexOf(num) >= 0; })[0];
-            if (word && word.bbox) {
-              var b = word.bbox, g = f.g, r = f.r;
+            if (res.box) {
+              var b = res.box, g = f.g, r = f.r;
               mark.style.left = (g.left - r.left + b.x0 / f.canvas.width * g.width - 4) + 'px';
               mark.style.top = (g.top - r.top + b.y0 / f.canvas.height * g.height - 4) + 'px';
               mark.style.width = ((b.x1 - b.x0) / f.canvas.width * g.width + 8) + 'px';
@@ -250,11 +265,9 @@
             setTimeout(loop, 250);
           });
         }
-        getWorker().then(function () {
-          if (!done) setTimeout(loop, 400);
-        }, function () {
-          if (!done) { close(); resolve(undefined); }
-        });
+        var workerReady = false;
+        getWorker().then(function () { workerReady = true; }, function () {});
+        setTimeout(loop, 400);
       });
     });
   }
@@ -268,11 +281,9 @@
       ? liveScan(typeof last === 'number' ? last : undefined)
       : Promise.reject(new Error('no camera'));
     return live.then(function (v) {
-      if (v === undefined) throw new Error('library');
       if (v && onPicked) onPicked();
       return v;
     }, function (err) {
-      if (err && err.message === 'library') throw err;
       return pickPhoto().then(function (file) {
         if (!file) return null;
         if (onPicked) onPicked();

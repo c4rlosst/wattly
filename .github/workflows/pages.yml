@@ -45,7 +45,7 @@ jobs:
           # the app's files after this commit so a new deploy is never mistaken
           # for the old one.
           v="${GITHUB_SHA::8}"
-          sed -i "s#src=\"flutter_bootstrap.js\"#src=\"flutter_bootstrap.js?v=$v\"#; s#href=\"main.dart.js\"#href=\"main.dart.js?v=$v\"#; s#src=\"ocr.js\"#src=\"ocr.js?v=$v\"#" build/web/index.html
+          sed -i "s#src=\"flutter_bootstrap.js\"#src=\"flutter_bootstrap.js?v=$v\"#; s#href=\"main.dart.js\"#href=\"main.dart.js?v=$v\"#; s#src=\"ocr.js\"#src=\"ocr.js?v=$v\"#; s#src=\"lcd.js\"#src=\"lcd.js?v=$v\"#" build/web/index.html
           sed -i "s#\"main.dart.js\"#\"main.dart.js?v=$v\"#g" build/web/flutter_bootstrap.js
           grep -c "v=$v" build/web/index.html build/web/flutter_bootstrap.js
       - uses: actions/upload-pages-artifact@v3
