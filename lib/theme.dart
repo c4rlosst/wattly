@@ -73,15 +73,31 @@ class Palette {
       Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
-ThemeData buildTheme(Brightness brightness) {
-  final p = brightness == Brightness.dark ? Palette.dark : Palette.light;
+/// The two themes, each built once. Building a theme is surprisingly
+/// expensive, so it must not happen on every rebuild.
+final ThemeData lightTheme = _buildTheme(Brightness.light);
+final ThemeData darkTheme = _buildTheme(Brightness.dark);
+
+ThemeData _buildTheme(Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  final p = dark ? Palette.dark : Palette.light;
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFFFF9500),
+    // Spelled out from our own palette. `ColorScheme.fromSeed` computes a whole
+    // tonal palette at startup and pulls in a large colour-science library we
+    // don't otherwise need.
+    colorScheme: ColorScheme(
       brightness: brightness,
-    ).copyWith(primary: p.accentText, surface: p.bg),
+      primary: p.accentText,
+      onPrimary: dark ? Colors.black : Colors.white,
+      secondary: p.accent,
+      onSecondary: p.onAccent,
+      error: const Color(0xFFFF3B30),
+      onError: Colors.white,
+      surface: p.bg,
+      onSurface: p.label,
+    ),
     scaffoldBackgroundColor: p.bg,
     splashFactory: NoSplash.splashFactory,
     highlightColor: Colors.transparent,

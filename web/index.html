@@ -19,8 +19,17 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Track your dorm's electricity use in kWh and cost.">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- No viewport-fit=cover: Flutter on the web can't read the iPhone's safe
+       areas, so full-bleed would put the tab bar under the home indicator. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F5A623">
+
+  <!-- Open the connections the app is about to need (CanvasKit and the font
+       come from Google's CDN) and start downloading the app's code now,
+       instead of after the loader script has run. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="main.dart.js" as="script">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -37,7 +46,12 @@
 
   <style>
     /* Loading screen shown until Flutter draws its first frame. */
-    html, body { margin: 0; height: 100%; background: #F2F2F7; }
+    /* overscroll-behavior: no pull-to-refresh on Android, no rubber-band on
+       iPhone that would reveal the page behind the app. */
+    html, body {
+      margin: 0; height: 100%; background: #F2F2F7;
+      overscroll-behavior: none;
+    }
     html.dark, html.dark body { background: #000; }
     #splash {
       position: fixed; top: 0; right: 0; bottom: 0; left: 0;

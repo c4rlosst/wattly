@@ -21,18 +21,24 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _rate;
+  final FocusNode _rateFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
     final s = widget.store;
     _rate = TextEditingController(
-        text: s.ratePerKwh == 0 ? '' : s.ratePerKwh.toString());
+        text: s.ratePerKwh == 0 ? '' : trimNumber(s.ratePerKwh));
+    // The price isn't saved on every keystroke; leaving the field saves it.
+    _rateFocus.addListener(() {
+      if (!_rateFocus.hasFocus) widget.store.flush();
+    });
   }
 
   @override
   void dispose() {
     _rate.dispose();
+    _rateFocus.dispose();
     super.dispose();
   }
 
@@ -91,6 +97,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final p = Palette.of(context);
 
     return CustomScrollView(
+      // Each tab scrolls on its own; they must not share the route's controller.
+      primary: false,
       slivers: [
         largeTitleBar(context, 'Settings'),
         SliverPadding(
@@ -102,9 +110,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 footer:
                     'Check your dorm or utility bill. Past entries keep the rate they were logged with.',
                 children: [
-                  GestureDetector(
+                  Tappable(
                     key: const Key('currency-row'),
-                    behavior: HitTestBehavior.opaque,
                     onTap: () => showCurrencyPicker(context, store),
                     child: FormRow(
                       label: 'Currency',
@@ -132,6 +139,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   FormRow(
                     label: 'Price per kWh',
+                    onTap: _rateFocus.requestFocus,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -142,9 +150,15 @@ class _SettingsPageState extends State<SettingsPage> {
                         NumberField(
                           key: const Key('rate'),
                           width: 80,
+                          focusNode: _rateFocus,
                           controller: _rate,
                           hint: '0.00',
-                          onChanged: (v) => store.setRate(parseNumber(v) ?? 0),
+                          // Nothing on this screen depends on the price, so don't
+                          // rebuild it on every keystroke; other tabs catch up
+                          // when they are shown.
+                          onChanged: (v) => store.setRate(
+                              parseNumber(v) ?? 0,
+                              notify: false),
                         ),
                       ],
                     ),
@@ -200,8 +214,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                     ),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  Tappable(
                     onTap: _addAppliance,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(minHeight: 48),

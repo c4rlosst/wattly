@@ -49,6 +49,10 @@ class PhoneColumn extends StatelessWidget {
                       math.min(constraints.maxWidth, maxWidth),
                       media.size.height,
                     ),
+                    // Very large system text would break the fixed-size rows;
+                    // keep it readable without overflowing.
+                    textScaler: media.textScaler
+                        .clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3),
                   ),
                   child: child,
                 ),
@@ -72,11 +76,36 @@ Widget largeTitleBar(
   return CupertinoSliverNavigationBar(
     largeTitle: Text(title),
     automaticallyImplyLeading: false,
-    backgroundColor: p.bg.withValues(alpha: 0.92),
+    // Opaque on purpose: a see-through bar makes the browser blur everything
+    // behind it on every frame, which is slow on phones and nearly invisible.
+    backgroundColor: p.bg,
     border: null,
+    // The three tabs live side by side in one route, so no hero transitions.
+    transitionBetweenRoutes: false,
     leading: leading,
     trailing: trailing,
   );
+}
+
+/// A tap target that shows the pointer cursor on a PC and reacts to taps
+/// anywhere inside its bounds, empty space included.
+class Tappable extends StatelessWidget {
+  const Tappable({super.key, required this.onTap, required this.child});
+
+  final VoidCallback? onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: child,
+      ),
+    );
+  }
 }
 
 /// Logo and name for the top-left of a navigation bar.
@@ -114,15 +143,24 @@ class AddButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Log usage',
-      child: GestureDetector(
+      child: Tappable(
         key: const Key('add-usage'),
         onTap: onPressed,
-        child: Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: p.accent, shape: BoxShape.circle),
-          child: PlusIcon(size: 16, color: p.onAccent),
+        // The circle is 34 px, but the touch target is the standard 44 px, so
+        // a thumb doesn't miss it.
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration:
+                  BoxDecoration(color: p.accent, shape: BoxShape.circle),
+              child: PlusIcon(size: 16, color: p.onAccent),
+            ),
+          ),
         ),
       ),
     );
@@ -177,16 +215,25 @@ class Group extends StatelessWidget {
 }
 
 /// A row inside a [Group]: label on the left, [trailing] on the right.
+///
+/// With [onTap] the whole row is tappable (for a text field, pass its
+/// focus node's `requestFocus`, so tapping the label focuses the field).
 class FormRow extends StatelessWidget {
-  const FormRow({super.key, required this.label, required this.trailing});
+  const FormRow({
+    super.key,
+    required this.label,
+    required this.trailing,
+    this.onTap,
+  });
 
   final String label;
   final Widget trailing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return ConstrainedBox(
+    final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -207,6 +254,7 @@ class FormRow extends StatelessWidget {
         ),
       ),
     );
+    return onTap == null ? row : Tappable(onTap: onTap, child: row);
   }
 }
 
@@ -219,6 +267,9 @@ class NumberField extends StatelessWidget {
     this.onChanged,
     this.enabled = true,
     this.width = 140,
+    this.focusNode,
+    this.onSubmitted,
+    this.textInputAction,
     this.keyboardType =
         const TextInputType.numberWithOptions(decimal: true),
     this.textCapitalization = TextCapitalization.none,
@@ -229,6 +280,9 @@ class NumberField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final bool enabled;
   final double width;
+  final FocusNode? focusNode;
+  final ValueChanged<String>? onSubmitted;
+  final TextInputAction? textInputAction;
   final TextInputType keyboardType;
   final TextCapitalization textCapitalization;
 
@@ -239,8 +293,11 @@ class NumberField extends StatelessWidget {
       width: width,
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         enabled: enabled,
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        textInputAction: textInputAction,
         keyboardType: keyboardType,
         textCapitalization: textCapitalization,
         textAlign: TextAlign.end,

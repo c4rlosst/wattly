@@ -34,8 +34,11 @@ class _DashboardPageState extends State<DashboardPage> {
     final headlineKwh = metered ?? estimated;
     final headlineCost =
         metered != null ? metered * store.ratePerKwh : estimatedCost;
+    final latest = store.latestReading;
 
     return CustomScrollView(
+      // Each tab scrolls on its own; they must not share the route's controller.
+      primary: false,
       slivers: [
         largeTitleBar(
           context,
@@ -160,7 +163,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
               ),
-              if (store.latestReading != null) ...[
+              if (latest != null) ...[
                 const SizedBox(height: 12),
                 Group(children: [
                   Padding(
@@ -179,13 +182,13 @@ class _DashboardPageState extends State<DashboardPage> {
                                   style: TextStyle(
                                       fontSize: 17, color: p.label)),
                               Text(
-                                  'Last reading: ${whenLabel(store.latestReading!.time, DateTime.now())}',
+                                  'Last reading: ${whenLabel(latest.time, DateTime.now())}',
                                   style: TextStyle(
                                       fontSize: 13, color: p.secondary)),
                             ],
                           ),
                         ),
-                        Text(formatKwh(store.latestReading!.kwh),
+                        Text(formatKwh(latest.kwh),
                             style:
                                 TextStyle(fontSize: 17, color: p.secondary)),
                       ],

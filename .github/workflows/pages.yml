@@ -21,10 +21,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned so a new Flutter release can't change the app unexpectedly;
+          # bump it on purpose. The SDK is cached between runs.
+          flutter-version: 3.47.7
           channel: stable
+          cache: true
       - run: flutter pub get
       - run: flutter test
       - run: flutter build web --release --base-href /wattly/
+      - name: Remove files the web app never downloads
+        run: |
+          # CanvasKit is loaded from Google's CDN (the build config names an
+          # engine revision), so the local copies (about 35 MB) are never used
+          # and only slow the deploy down. Stop here if that ever changes.
+          grep -q '"engineRevision"' build/web/flutter_bootstrap.js
+          rm -rf build/web/canvaskit
+          find build/web -name '*.symbols' -delete
+          du -sh build/web
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web

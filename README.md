@@ -29,7 +29,7 @@ Wattly is made for students living in dorms who want to know how much electricit
 - **See your usage.** Today, this week or this month, with a bar chart, kWh and cost. When you have meter readings it uses those, and it shows your device estimate next to them.
 - **Save your devices.** Enter your laptop, mini-fridge or fan wattage once, then just pick it when logging.
 - **Your currency.** Pick the Philippine peso, other pesos, dollars, euros and more, or type your own symbol. Past entries keep the rate they were logged with.
-- **Private.** Everything is stored on your device. No account, no server, and it works offline.
+- **Private.** Everything you log is stored on your device. No account and no server. (Opening the app needs an internet connection; your data never leaves your phone.)
 - **Light by default**, even on a computer set to dark mode, in an iOS-style design. Switch to Dark or Auto in Settings.
 - **Works on a PC too.** On a big screen the app shows as a centered phone-width column.
 

@@ -134,8 +134,7 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return Tappable(
       onTap: onTap,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),

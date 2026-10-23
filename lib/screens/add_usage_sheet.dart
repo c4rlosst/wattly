@@ -45,7 +45,12 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   final _watts = TextEditingController();
   final _hours = TextEditingController();
   final _reading = TextEditingController();
+  final _nameFocus = FocusNode();
+  final _wattsFocus = FocusNode();
+  final _hoursFocus = FocusNode();
+  final _readingFocus = FocusNode();
   bool _saveDevice = false;
+  bool _saving = false;
   DateTime _time = DateTime.now();
   String? _error;
 
@@ -55,6 +60,10 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
     _watts.dispose();
     _hours.dispose();
     _reading.dispose();
+    _nameFocus.dispose();
+    _wattsFocus.dispose();
+    _hoursFocus.dispose();
+    _readingFocus.dispose();
     super.dispose();
   }
 
@@ -137,6 +146,9 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   }
 
   void _save() {
+    // The sheet takes a moment to slide away; a quick second tap on Save must
+    // not log the same entry twice.
+    if (_saving) return;
     final store = widget.store;
     if (_mode == _Mode.meter) {
       final kwh = parseNumber(_reading.text);
@@ -144,6 +156,7 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
         setState(() => _error = 'Enter the number shown on your meter.');
         return;
       }
+      _saving = true;
       store.addReading(kwh, _time);
     } else {
       final name = _name.text.trim();
@@ -157,8 +170,14 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
         setState(() => _error = 'Enter how many hours it ran.');
         return;
       }
+      _saving = true;
       store.addUsage(label: name, watts: watts, hours: hours, time: _time);
-      if (_saveDevice && _appliance == null) store.addAppliance(name, watts);
+      // "Save for next time" must not pile up copies of the same device.
+      final alreadySaved = store.appliances.any(
+          (a) => a.name.toLowerCase() == name.toLowerCase() && a.watts == watts);
+      if (_saveDevice && _appliance == null && !alreadySaved) {
+        store.addAppliance(name, watts);
+      }
     }
     Navigator.pop(context);
   }
@@ -177,17 +196,25 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
 
     double? addKwh;
     String? caption;
+    String? warning;
     String label = 'This will add';
     if (_mode == _Mode.device) {
       if (watts != null && hours != null) {
         addKwh = wattHoursToKwh(watts, hours);
-        caption = '${watts.toStringAsFixed(0)} W × $hours h ÷ 1000';
+        caption = '${trimNumber(watts)} W × ${trimNumber(hours)} h ÷ 1000';
       }
     } else {
       label = 'Since last reading';
-      if (reading != null && last != null && reading >= last.kwh) {
-        addKwh = reading - last.kwh;
-        caption = '$reading − ${last.kwh}';
+      if (reading != null && last != null) {
+        if (reading >= last.kwh) {
+          addKwh = reading - last.kwh;
+          caption = '${trimNumber(reading)} − ${trimNumber(last.kwh)}';
+        } else {
+          // Usually a typo; a meter only counts up. Still allowed (a meter can
+          // be replaced), but say so.
+          warning =
+              'That is lower than your last reading (${formatKwh(last.kwh)}). Check the number.';
+        }
       }
     }
 
@@ -200,10 +227,14 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
             children: [
               SizedBox(
                 width: 72,
-                child: GestureDetector(
+                height: 44,
+                child: Tappable(
                   onTap: () => Navigator.pop(context),
-                  child: Text('Cancel',
-                      style: TextStyle(fontSize: 17, color: p.accentText)),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Cancel',
+                        style: TextStyle(fontSize: 17, color: p.accentText)),
+                  ),
                 ),
               ),
               Expanded(
@@ -233,53 +264,64 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
           if (_mode == _Mode.device)
             Group(children: [
               if (store.appliances.isNotEmpty)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                FormRow(
+                  label: 'Device',
                   onTap: _pickAppliance,
-                  child: FormRow(
-                    label: 'Device',
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_appliance?.name ?? 'Custom',
-                            style: TextStyle(
-                                fontSize: 17, color: p.secondary)),
-                        const SizedBox(width: 6),
-                        ChevronIcon(
-                            size: 14,
-                            color: p.secondary.withValues(alpha: 0.6)),
-                      ],
-                    ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_appliance?.name ?? 'Custom',
+                          style:
+                              TextStyle(fontSize: 17, color: p.secondary)),
+                      const SizedBox(width: 6),
+                      ChevronIcon(
+                          size: 14,
+                          color: p.secondary.withValues(alpha: 0.6)),
+                    ],
                   ),
                 ),
+              // Tapping anywhere on a row (label included) focuses its field,
+              // and Enter moves on to the next one.
               FormRow(
                 label: 'Name',
+                onTap: _nameFocus.requestFocus,
                 trailing: NumberField(
                   key: const Key('name'),
+                  focusNode: _nameFocus,
                   controller: _name,
                   enabled: custom,
                   hint: 'Laptop',
                   keyboardType: TextInputType.text,
                   textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _wattsFocus.requestFocus(),
                 ),
               ),
               FormRow(
                 label: 'Power (W)',
+                onTap: _wattsFocus.requestFocus,
                 trailing: NumberField(
                   key: const Key('watts'),
+                  focusNode: _wattsFocus,
                   controller: _watts,
                   enabled: custom,
                   hint: '65',
+                  textInputAction: TextInputAction.next,
                   onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _hoursFocus.requestFocus(),
                 ),
               ),
               FormRow(
                 label: 'Hours used',
+                onTap: _hoursFocus.requestFocus,
                 trailing: NumberField(
                   key: const Key('hours'),
+                  focusNode: _hoursFocus,
                   controller: _hours,
                   hint: '8',
+                  textInputAction: TextInputAction.done,
                   onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _save(),
                 ),
               ),
             ])
@@ -289,25 +331,26 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
               children: [
                 FormRow(
                   label: 'Meter (kWh)',
+                  onTap: _readingFocus.requestFocus,
                   trailing: NumberField(
                     key: const Key('reading'),
+                    focusNode: _readingFocus,
                     controller: _reading,
                     hint: '4821.6',
+                    textInputAction: TextInputAction.done,
                     onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _save(),
                   ),
                 ),
               ],
             ),
           const SizedBox(height: 12),
           Group(children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            FormRow(
+              label: 'When',
               onTap: _pickTime,
-              child: FormRow(
-                label: 'When',
-                trailing: Text(whenLabel(_time, now),
-                    style: TextStyle(fontSize: 17, color: p.secondary)),
-              ),
+              trailing: Text(whenLabel(_time, now),
+                  style: TextStyle(fontSize: 17, color: p.secondary)),
             ),
             if (_mode == _Mode.device && custom)
               FormRow(
@@ -362,6 +405,13 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
                     style: TextStyle(fontSize: 13, color: p.secondary)),
               ),
           ],
+          if (warning != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(warning,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: p.accentText)),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -371,7 +421,7 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
                       fontSize: 15, color: CupertinoColors.systemRed)),
             ),
           const SizedBox(height: 20),
-          GestureDetector(
+          Tappable(
             key: const Key('save'),
             onTap: _save,
             child: Container(

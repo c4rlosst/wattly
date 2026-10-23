@@ -6,6 +6,11 @@ String formatKwh(double kwh) => '${formatKwhValue(kwh)} kWh';
 String formatMoney(String currency, double amount) =>
     '$currency${amount.toStringAsFixed(2)}';
 
+/// A number without a pointless ".0": 8 not 8.0, but 1.5 stays 1.5. (Dart
+/// prints doubles differently in the browser and elsewhere; this doesn't.)
+String trimNumber(double value) =>
+    value == value.roundToDouble() ? value.toStringAsFixed(0) : '$value';
+
 const _months = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', //
@@ -21,12 +26,14 @@ String formatTime(DateTime t) {
 String formatDateTime(DateTime t) =>
     '${_months[t.month - 1]} ${t.day}, ${formatTime(t)}';
 
-int _dayNumber(DateTime t) =>
+/// Whole days since 1970 for the calendar day of [t]; equal for any two times
+/// on the same day, so it is a cheap way to tell days apart.
+int dayNumber(DateTime t) =>
     DateTime.utc(t.year, t.month, t.day).millisecondsSinceEpoch ~/ 86400000;
 
 /// "Today", "Yesterday", or e.g. "Mon, Oct 20".
 String dayLabel(DateTime day, DateTime now) {
-  final diff = _dayNumber(now) - _dayNumber(day);
+  final diff = dayNumber(now) - dayNumber(day);
   if (diff == 0) return 'Today';
   if (diff == 1) return 'Yesterday';
   return '${_weekdays[day.weekday - 1]}, ${_months[day.month - 1]} ${day.day}';

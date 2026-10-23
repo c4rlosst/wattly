@@ -2,53 +2,69 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../format.dart';
+import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'add_usage_sheet.dart';
 
-class HistoryPage extends StatelessWidget {
+class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key, required this.store});
 
   final WattlyStore store;
 
   @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    final now = DateTime.now();
+  State<HistoryPage> createState() => _HistoryPageState();
+}
 
-    final items = <_Item>[
-      for (final e in store.entries)
-        _Item(
-          id: e.id,
-          time: e.time,
-          icon: CupertinoIcons.bolt_fill,
-          color: p.accent,
-          title: e.label,
-          subtitle: '${e.watts.toStringAsFixed(0)} W × ${e.hours} h',
-          trailing: formatKwh(e.kwh),
-          onDelete: () => store.removeUsage(e.id),
-        ),
-      for (final r in store.readings)
-        _Item(
-          id: r.id,
-          time: r.time,
-          icon: CupertinoIcons.timer_fill,
-          color: p.green,
-          title: 'Meter reading',
-          subtitle: formatTime(r.time),
-          trailing: formatKwh(r.kwh),
-          onDelete: () => store.removeReading(r.id),
-        ),
-    ]..sort((a, b) => b.time.compareTo(a.time));
+class _HistoryPageState extends State<HistoryPage> {
+  final ScrollController _scroll = ScrollController();
 
-    // Group by calendar day, newest first (items are already sorted).
-    final days = <String, List<_Item>>{};
-    for (final item in items) {
-      days.putIfAbsent(dayLabel(item.time, now), () => []).add(item);
+  // Sorting and grouping every entry is the expensive part, so it is done once
+  // per change to the data (or per new day), not on every rebuild.
+  int _revision = -1;
+  int _today = -1;
+  List<_Day> _days = const [];
+  _Item? _newest;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  List<_Day> _daysFor(DateTime now) {
+    final today = dayNumber(now);
+    if (_revision != widget.store.revision || _today != today) {
+      final days = _group(widget.store, now);
+      final newest = days.isEmpty ? null : days.first.items.first;
+      // The list keeps its scroll position between visits, but a brand-new
+      // entry lands at the top: bring it into view instead of hiding it.
+      final previous = _newest;
+      if (previous != null &&
+          newest != null &&
+          newest.id != previous.id &&
+          newest.time.isAfter(previous.time)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scroll.hasClients) _scroll.jumpTo(0);
+        });
+      }
+      _days = days;
+      _newest = newest;
+      _revision = widget.store.revision;
+      _today = today;
     }
+    return _days;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = widget.store;
+    final p = Palette.of(context);
+    final days = _daysFor(DateTime.now());
 
     return CustomScrollView(
+      controller: _scroll,
       slivers: [
         largeTitleBar(
           context,
@@ -56,7 +72,7 @@ class HistoryPage extends StatelessWidget {
           trailing: AddButton(
               onPressed: () => showAddUsageSheet(context, store)),
         ),
-        if (items.isEmpty)
+        if (days.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,
             child: Center(
@@ -86,23 +102,29 @@ class HistoryPage extends StatelessWidget {
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            sliver: SliverList.list(
-              children: [
-                for (final entry in days.entries) ...[
-                  Group(
-                    header: entry.key,
+            // Builds only the days on screen, however long the history is.
+            sliver: SliverList.builder(
+              itemCount: days.length + 1,
+              itemBuilder: (context, i) {
+                if (i == days.length) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('Swipe left on an entry to delete it.',
+                        style: TextStyle(fontSize: 13, color: p.secondary)),
+                  );
+                }
+                final day = days[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Group(
+                    header: day.label,
                     children: [
-                      for (final item in entry.value) _Row(item: item),
+                      for (final item in day.items)
+                        _Row(key: ValueKey(item.id), item: item, store: store),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                ],
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('Swipe left on an entry to delete it.',
-                      style: TextStyle(fontSize: 13, color: p.secondary)),
-                ),
-              ],
+                );
+              },
             ),
           ),
       ],
@@ -110,16 +132,65 @@ class HistoryPage extends StatelessWidget {
   }
 }
 
+/// All entries and meter readings, newest first, grouped by calendar day.
+List<_Day> _group(WattlyStore store, DateTime now) {
+  final items = <_Item>[
+    for (final e in store.entries) _Item.entry(e),
+    for (final r in store.readings) _Item.reading(r),
+  ]..sort((a, b) => b.time.compareTo(a.time));
+
+  final days = <_Day>[];
+  var current = -1;
+  for (final item in items) {
+    final day = dayNumber(item.time);
+    if (day != current) {
+      current = day;
+      days.add(_Day(dayLabel(item.time, now), []));
+    }
+    days.last.items.add(item);
+  }
+  return days;
+}
+
+class _Day {
+  _Day(this.label, this.items);
+
+  final String label;
+  final List<_Item> items;
+}
+
+class _Item {
+  _Item.entry(UsageEntry e)
+      : id = e.id,
+        time = e.time,
+        entry = e,
+        reading = null;
+
+  _Item.reading(MeterReading r)
+      : id = r.id,
+        time = r.time,
+        entry = null,
+        reading = r;
+
+  final String id;
+  final DateTime time;
+  final UsageEntry? entry;
+  final MeterReading? reading;
+}
+
 class _Row extends StatelessWidget {
-  const _Row({required this.item});
+  const _Row({super.key, required this.item, required this.store});
 
   final _Item item;
+  final WattlyStore store;
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
+    final e = item.entry;
+    final r = item.reading;
     return Dismissible(
-      key: ValueKey(item.id),
+      key: ValueKey('dismiss-${item.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         color: CupertinoColors.systemRed,
@@ -127,27 +198,41 @@ class _Row extends StatelessWidget {
         padding: const EdgeInsets.only(right: 24),
         child: const Icon(CupertinoIcons.trash_fill, color: Colors.white),
       ),
-      onDismissed: (_) => item.onDelete(),
+      onDismissed: (_) {
+        if (e != null) {
+          store.removeUsage(e.id);
+        } else {
+          store.removeReading(r!.id);
+        }
+      },
       child: ColoredBox(
         color: p.card,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-              IconTile(icon: item.icon, color: item.color),
+              IconTile(
+                icon: e != null
+                    ? CupertinoIcons.bolt_fill
+                    : CupertinoIcons.timer_fill,
+                color: e != null ? p.accent : p.green,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.title,
+                    Text(e?.label ?? 'Meter reading',
                         style: TextStyle(fontSize: 17, color: p.label)),
-                    Text(item.subtitle,
+                    Text(
+                        e != null
+                            ? '${trimNumber(e.watts)} W × ${trimNumber(e.hours)} h'
+                            : formatTime(r!.time),
                         style: TextStyle(fontSize: 13, color: p.secondary)),
                   ],
                 ),
               ),
-              Text(item.trailing,
+              Text(formatKwh(e?.kwh ?? r!.kwh),
                   style: TextStyle(
                       fontSize: 17,
                       color: p.secondary,
@@ -158,26 +243,4 @@ class _Row extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Item {
-  const _Item({
-    required this.id,
-    required this.time,
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
-    required this.onDelete,
-  });
-
-  final String id;
-  final DateTime time;
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-  final String trailing;
-  final VoidCallback onDelete;
 }

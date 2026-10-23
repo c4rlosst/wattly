@@ -28,6 +28,22 @@ void main() {
     expect(periodStart(Period.month, wed), DateTime(2026, 10, 1));
   });
 
+  test('the week starts on Monday across month and year boundaries', () {
+    // Friday 1 Jan 2027: the week began on Monday 28 Dec 2026.
+    expect(periodStart(Period.week, DateTime(2027, 1, 1, 10)),
+        DateTime(2026, 12, 28));
+    // A Monday is its own week start.
+    expect(periodStart(Period.week, DateTime(2026, 3, 2, 8)),
+        DateTime(2026, 3, 2));
+    // Sunday belongs to the week that began six days earlier.
+    expect(periodStart(Period.week, DateTime(2026, 10, 25, 23, 59)),
+        DateTime(2026, 10, 19));
+    // Midnight exactly, not a stray hour (what a Duration subtraction can give
+    // across a daylight-saving change).
+    final start = periodStart(Period.week, DateTime(2026, 11, 4, 12));
+    expect([start.hour, start.minute, start.second], [0, 0, 0]);
+  });
+
   test('estimatedKwh only counts entries inside the period', () {
     UsageEntry at(DateTime t) => UsageEntry(
         id: t.toString(), time: t, label: 'x', watts: 1000, hours: 1, ratePerKwh: 0);
@@ -104,6 +120,17 @@ void main() {
         r(DateTime(2026, 10, 9), 112.5),
       ];
       expect(meteredKwh(readings, from), 17.5);
+    });
+
+    test('gives the same answer whatever order the readings come in', () {
+      final readings = [
+        r(DateTime(2026, 9, 28), 95),
+        r(DateTime(2026, 10, 9), 112.5),
+        r(DateTime(2026, 10, 3), 100),
+        r(DateTime(2026, 9, 20), 80),
+      ];
+      expect(meteredKwh(readings, from), 17.5);
+      expect(meteredKwh(readings.reversed, from), 17.5);
     });
 
     test('null when the meter went backwards (typo or replaced meter)', () {

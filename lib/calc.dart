@@ -12,10 +12,12 @@ extension PeriodLabel on Period {
 
 /// Start of [period] relative to [now]. Weeks start on Monday.
 DateTime periodStart(Period period, DateTime now) {
-  final midnight = DateTime(now.year, now.month, now.day);
   return switch (period) {
-    Period.today => midnight,
-    Period.week => midnight.subtract(Duration(days: now.weekday - 1)),
+    Period.today => DateTime(now.year, now.month, now.day),
+    // Calendar arithmetic (the constructor rolls days over months), not
+    // `subtract(Duration(days: n))`, which is off by an hour across a
+    // daylight-saving change.
+    Period.week => DateTime(now.year, now.month, now.day - (now.weekday - 1)),
     Period.month => DateTime(now.year, now.month),
   };
 }
@@ -80,13 +82,24 @@ double estimatedCost(Iterable<UsageEntry> entries, DateTime from) => entries
 /// The baseline is the last reading taken before [from], or the first reading
 /// inside the period when there is none. Returns null when there isn't enough
 /// data to measure a difference.
+///
+/// One pass with no copying or sorting, so it stays cheap with many readings;
+/// [readings] may be in any order.
 double? meteredKwh(Iterable<MeterReading> readings, DateTime from) {
-  final sorted = readings.toList()..sort((a, b) => a.time.compareTo(b.time));
-  final before = sorted.where((r) => r.time.isBefore(from)).toList();
-  final inside = sorted.where((r) => !r.time.isBefore(from)).toList();
-  if (inside.isEmpty) return null;
-  final baseline = before.isNotEmpty ? before.last : inside.first;
-  final used = inside.last.kwh - baseline.kwh;
-  if (identical(baseline, inside.last)) return null;
+  MeterReading? before; // latest reading taken before the period
+  MeterReading? first; // earliest reading inside the period
+  MeterReading? last; // latest reading inside the period
+  for (final r in readings) {
+    if (r.time.isBefore(from)) {
+      if (before == null || r.time.isAfter(before.time)) before = r;
+    } else {
+      if (first == null || r.time.isBefore(first.time)) first = r;
+      if (last == null || r.time.isAfter(last.time)) last = r;
+    }
+  }
+  if (last == null) return null;
+  final baseline = before ?? first!;
+  if (identical(baseline, last)) return null;
+  final used = last.kwh - baseline.kwh;
   return used < 0 ? null : used;
 }
