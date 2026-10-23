@@ -22,7 +22,8 @@ Future<void> showAddUsageSheet(BuildContext context, WattlyStore store) {
     ),
     builder: (context) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: _AddUsageSheet(store: store),
+      // Only the sheet repaints while it slides and the keyboard animates.
+      child: RepaintBoundary(child: _AddUsageSheet(store: store)),
     ),
   );
 }

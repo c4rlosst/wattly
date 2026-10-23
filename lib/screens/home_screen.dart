@@ -29,6 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: p.bg,
+      // When the keyboard opens (the Log usage sheet, the price field), don't
+      // re-lay-out the whole page behind it on every frame of the animation;
+      // the sheet makes room for the keyboard itself.
+      resizeToAvoidBottomInset: false,
       // The tabs stay alive side by side (so each keeps its scroll position and
       // choices, e.g. Usage remembers "Week"); only the visible one is shown.
       body: Stack(
