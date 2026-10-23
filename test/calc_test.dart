@@ -3,6 +3,7 @@ import 'package:wattly/calc.dart';
 import 'package:wattly/models.dart';
 
 void main() {
+  scanTests();
   test('watts and hours convert to kWh', () {
     expect(wattHoursToKwh(1000, 1), 1);
     expect(wattHoursToKwh(65, 8), closeTo(0.52, 1e-9));
@@ -139,6 +140,27 @@ void main() {
         r(DateTime(2026, 10, 9), 50),
       ];
       expect(meteredKwh(readings, from), isNull);
+    });
+  });
+}
+
+void scanTests() {
+  group('readingFromScan', () {
+    test('takes a plain reading', () {
+      expect(readingFromScan('5358.6'), 5358.6);
+    });
+    test('ignores short stray digits and picks the closest to the last reading',
+        () {
+      expect(readingFromScan('12\n00123456\n5360.2', last: 5358.6), 5360.2);
+    });
+    test('longest number wins without a last reading', () {
+      expect(readingFromScan('48 5358.6'), 5358.6);
+    });
+    test('prefers a decimal over a serial number', () {
+      expect(readingFromScan('88231230\n\n48210.7'), 48210.7);
+    });
+    test('null when nothing looks like a reading', () {
+      expect(readingFromScan('  \n.. 7'), isNull);
     });
   });
 }

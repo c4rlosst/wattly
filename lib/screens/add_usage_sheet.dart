@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../calc.dart';
 import '../format.dart';
+import '../meter_scan.dart';
 import '../icons.dart';
 import '../models.dart';
 import '../store.dart';
@@ -54,6 +55,8 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   bool _saving = false;
   DateTime _time = DateTime.now();
   String? _error;
+  bool _scanning = false;
+  String? _scanNote;
 
   @override
   void dispose() {
@@ -66,6 +69,39 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
     _hoursFocus.dispose();
     _readingFocus.dispose();
     super.dispose();
+  }
+
+  /// Takes a photo of the meter and reads the number off it, on this phone.
+  /// The number only fills the field; the student still checks it.
+  Future<void> _scan() async {
+    if (_scanning) return;
+    setState(() => _scanNote = null);
+    try {
+      final text = await scanMeter(() {
+        if (mounted) setState(() => _scanning = true);
+      });
+      if (!mounted) return;
+      if (text == null) return; // cancelled
+      final v = readingFromScan(text, last: widget.store.latestReading?.kwh);
+      setState(() {
+        _scanning = false;
+        if (v == null) {
+          _scanNote =
+              'Couldn’t read a number from that photo. Try again closer and straight on, or type it.';
+        } else {
+          _reading.text = trimNumber(v);
+          _scanNote =
+              'Read ${trimNumber(v)} from the photo. Check it matches your meter.';
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _scanning = false;
+        _scanNote =
+            'Couldn’t load the photo reader. Connect to the internet once and try again, or type it.';
+      });
+    }
   }
 
   Future<void> _pickTime() async {
@@ -328,8 +364,32 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
             ])
           else
             Group(
-              footer: 'Enter the total shown on your dorm meter right now.',
+              footer: _scanNote ??
+                  'Enter the total shown on your dorm meter right now.',
               children: [
+                if (meterScanSupported)
+                  Tappable(
+                    key: const Key('scan'),
+                    onTap: _scan,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            _scanning
+                                ? const CupertinoActivityIndicator()
+                                : Icon(CupertinoIcons.camera_fill,
+                                    size: 24, color: p.accentText),
+                            const SizedBox(width: 12),
+                            Text(_scanning ? 'Reading photo…' : 'Scan meter with camera',
+                                style: TextStyle(
+                                    fontSize: 17, color: p.accentText)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 FormRow(
                   label: 'Meter (kWh)',
                   onTap: _readingFocus.requestFocus,

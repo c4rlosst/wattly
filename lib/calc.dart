@@ -103,3 +103,29 @@ double? meteredKwh(Iterable<MeterReading> readings, DateTime from) {
   final used = last.kwh - baseline.kwh;
   return used < 0 ? null : used;
 }
+
+/// Picks the meter reading out of the text a photo scan recognised (which can
+/// include stray digits from labels and serial numbers). Looks for numbers of
+/// 3 to 9 digits; with a [last] reading to go by, takes the one closest to it,
+/// otherwise one with a decimal part, then the longest. Null if nothing looks like a reading.
+double? readingFromScan(String raw, {double? last}) {
+  final candidates = <double>[];
+  for (final m in RegExp(r'\d+(?:\.\d+)?').allMatches(raw)) {
+    final text = m.group(0)!;
+    final digits = text.replaceAll('.', '').length;
+    if (digits < 3 || digits > 9) continue;
+    final v = double.tryParse(text);
+    if (v != null) candidates.add(v);
+  }
+  if (candidates.isEmpty) return null;
+  if (last != null) {
+    candidates.sort((a, b) => (a - last).abs().compareTo((b - last).abs()));
+    return candidates.first;
+  }
+  // Meters show a decimal digit, and serial numbers don't: prefer those.
+  candidates.sort((a, b) {
+    final d = (b % 1 != 0 ? 1 : 0) - (a % 1 != 0 ? 1 : 0);
+    return d != 0 ? d : b.toString().length.compareTo(a.toString().length);
+  });
+  return candidates.first;
+}
