@@ -111,6 +111,23 @@
     return c[0];
   }
 
+  // A decimal point is the easiest thing to lose from a scan, and losing one
+  // makes the number ten times too big. If the number is far above the last
+  // reading, put the point back wherever it makes the number a believable
+  // next reading.
+  function fixDot(num, last) {
+    if (!num || typeof last !== 'number' || num.indexOf('.') >= 0) return num;
+    var raw = Number(num);
+    if (raw >= last - 0.001 && raw <= last * 1.6 + 200) return num;
+    var best = null, k, v, text;
+    for (k = 1; k < num.length; k++) {
+      text = num.slice(0, num.length - k) + '.' + num.slice(num.length - k);
+      v = Number(text);
+      if (v >= last - 0.001 && (best === null || v < Number(best))) best = text;
+    }
+    return best && Number(best) <= last * 1.6 + 200 ? best : num;
+  }
+
   function el(tag, css, parent, text) {
     var e = document.createElement(tag);
     e.style.cssText = css;
@@ -201,7 +218,7 @@
         // if the text reader has loaded, as ordinary text.
         function read(f) {
           var lcd = window.wattlyReadLcd && window.wattlyReadLcd(f.plain);
-          var num = lcd && bestNumber(lcd.text, last);
+          var num = lcd && fixDot(bestNumber(lcd.text, last), last);
           if (num) return Promise.resolve({ num: num, box: lcd.box });
           if (!workerReady) return Promise.resolve({ num: null });
           return getWorker().then(function (w) { return w.recognize(f.canvas); }).then(function (res) {
