@@ -27,6 +27,7 @@ Wattly is made for students living in dorms who want to know how much electricit
 
 - **Log usage two ways.** Add a device with its wattage and the hours it ran (`kWh = W × h ÷ 1000`), or type in a reading from your dorm's meter.
 - **See your usage.** Today, this week or this billing cycle, with a bar chart, kWh and cost. Choose your monthly reset day (1–31) in Settings → Billing cycle; shorter months use their last day, and your history stays intact. When you have meter readings it uses those, and it shows your device estimate next to them.
+- **Cycle history.** Open History → Cycles to compare billing cycles using your reset day. Device estimates keep their logged rates; meter costs use your current rate, and incomplete meter coverage is labelled.
 - **Save your devices.** Enter your laptop, mini-fridge or fan wattage once, then just pick it when logging.
 - **Your currency.** Pick the Philippine peso, other pesos, dollars, euros and more, or type your own symbol. Past entries keep the rate they were logged with.
 - **Private.** Everything you log is stored on your device. No account and no server. (Opening the app needs an internet connection; your data never leaves your phone.)

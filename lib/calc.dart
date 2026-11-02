@@ -126,7 +126,9 @@ double? meteredKwh(Iterable<MeterReading> readings, DateTime from) {
     }
   }
   if (last == null) return null;
-  final baseline = before ?? first!;
+  // A reading exactly at the boundary is the best baseline. Choosing an older
+  // reading would also count consumption from the previous cycle.
+  final baseline = first!.time == from ? first : before ?? first;
   if (identical(baseline, last)) return null;
   final used = last.kwh - baseline.kwh;
   return used < 0 ? null : used;

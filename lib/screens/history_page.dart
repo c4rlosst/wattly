@@ -7,6 +7,7 @@ import '../store.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'add_usage_sheet.dart';
+import 'cycle_history_page.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key, required this.store});
@@ -69,8 +70,23 @@ class _HistoryPageState extends State<HistoryPage> {
         largeTitleBar(
           context,
           'History',
+          leading: CupertinoButton(
+            key: const Key('cycle-history'),
+            padding: EdgeInsets.zero,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => CycleHistoryPage(store: store),
+              ),
+            ),
+            child: Text(
+              'Cycles',
+              style: TextStyle(fontSize: 17, color: p.accentText),
+            ),
+          ),
           trailing: AddButton(
-              onPressed: () => showAddUsageSheet(context, store)),
+            onPressed: () => showAddUsageSheet(context, store),
+          ),
         ),
         if (days.isEmpty)
           SliverFillRemaining(
@@ -81,13 +97,20 @@ class _HistoryPageState extends State<HistoryPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(CupertinoIcons.clock_fill, size: 48, color: p.secondary),
+                    Icon(
+                      CupertinoIcons.clock_fill,
+                      size: 48,
+                      color: p.secondary,
+                    ),
                     const SizedBox(height: 12),
-                    Text('Nothing logged yet',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: p.label)),
+                    Text(
+                      'Nothing logged yet',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: p.label,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'Tap + to add a device or a meter reading.',
@@ -109,8 +132,10 @@ class _HistoryPageState extends State<HistoryPage> {
                 if (i == days.length) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Swipe left on an entry to delete it.',
-                        style: TextStyle(fontSize: 13, color: p.secondary)),
+                    child: Text(
+                      'Swipe left on an entry to delete it.',
+                      style: TextStyle(fontSize: 13, color: p.secondary),
+                    ),
                   );
                 }
                 final day = days[i];
@@ -163,17 +188,17 @@ class _Day {
 
 class _Item {
   _Item.entry(UsageEntry e)
-      : id = e.id,
-        time = e.time,
-        entry = e,
-        reading = null,
-        gain = null;
+    : id = e.id,
+      time = e.time,
+      entry = e,
+      reading = null,
+      gain = null;
 
   _Item.reading(MeterReading r, this.gain)
-      : id = r.id,
-        time = r.time,
-        entry = null,
-        reading = r;
+    : id = r.id,
+      time = r.time,
+      entry = null,
+      reading = r;
 
   /// kWh used since the previous meter reading (null for the first one).
   final double? gain;
@@ -227,27 +252,36 @@ class _Row extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(e?.label ?? 'Meter reading',
-                        style: TextStyle(fontSize: 17, color: p.label)),
                     Text(
-                        e != null
-                            ? '${trimNumber(e.watts)} W × ${trimNumber(e.hours)} h'
-                            : formatTime(r!.time),
-                        style: TextStyle(fontSize: 13, color: p.secondary)),
+                      e?.label ?? 'Meter reading',
+                      style: TextStyle(fontSize: 17, color: p.label),
+                    ),
+                    Text(
+                      e != null
+                          ? '${trimNumber(e.watts)} W × ${trimNumber(e.hours)} h'
+                          : formatTime(r!.time),
+                      style: TextStyle(fontSize: 13, color: p.secondary),
+                    ),
                     if (item.gain != null)
-                      Text('+${formatKwh(item.gain!)} since last reading',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: p.green)),
+                      Text(
+                        '+${formatKwh(item.gain!)} since last reading',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: p.green,
+                        ),
+                      ),
                   ],
                 ),
               ),
-              Text(formatKwh(e?.kwh ?? r!.kwh),
-                  style: TextStyle(
-                      fontSize: 17,
-                      color: p.secondary,
-                      fontFeatures: const [FontFeature.tabularFigures()])),
+              Text(
+                formatKwh(e?.kwh ?? r!.kwh),
+                style: TextStyle(
+                  fontSize: 17,
+                  color: p.secondary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
             ],
           ),
         ),

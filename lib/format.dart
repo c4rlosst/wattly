@@ -30,12 +30,12 @@ String ordinalDay(int day) {
 }
 
 /// Inclusive dates shown for a billing cycle whose end is exclusive.
-String cycleDateRange(DateTime start, DateTime end) {
+String cycleDateRange(DateTime start, DateTime end, {bool showYear = false}) {
   final last = DateTime(end.year, end.month, end.day - 1);
   final crossYear = start.year != last.year;
   String label(DateTime d) =>
       '${_months[d.month - 1]} ${d.day}${crossYear ? ', ${d.year}' : ''}';
-  return '${label(start)} – ${label(last)}';
+  return '${label(start)} – ${label(last)}${showYear && !crossYear ? ', ${last.year}' : ''}';
 }
 
 String formatTime(DateTime t) {
