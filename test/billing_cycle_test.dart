@@ -189,11 +189,29 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('monthly-reset-row')));
       await tester.pumpAndSettle();
-      final picker = tester.widget<CupertinoPicker>(
-        find.byKey(const Key('reset-day-picker')),
+      expect(
+        tester
+            .widget<Semantics>(find.byKey(const Key('reset-day-1')))
+            .properties
+            .selected,
+        isTrue,
       );
-      picker.scrollController!.jumpToItem(14);
+      await tester.tap(find.byKey(const Key('reset-day-15')));
       await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Semantics>(find.byKey(const Key('reset-day-15')))
+            .properties
+            .selected,
+        isTrue,
+      );
+      expect(
+        tester
+            .widget<Semantics>(find.byKey(const Key('reset-day-1')))
+            .properties
+            .selected,
+        isFalse,
+      );
       await tester.tap(find.byKey(const Key('reset-day-save')));
       await tester.pumpAndSettle();
       expect(store.monthlyResetDay, 15);
@@ -201,10 +219,14 @@ void main() {
       expect(find.text('15th'), findsOneWidget);
       await tester.tap(find.byKey(const Key('monthly-reset-row')));
       await tester.pumpAndSettle();
-      tester
-          .widget<CupertinoPicker>(find.byKey(const Key('reset-day-picker')))
-          .scrollController!
-          .jumpToItem(30);
+      expect(
+        tester
+            .widget<Semantics>(find.byKey(const Key('reset-day-15')))
+            .properties
+            .selected,
+        isTrue,
+      );
+      await tester.tap(find.byKey(const Key('reset-day-31')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

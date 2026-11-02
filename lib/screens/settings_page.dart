@@ -96,75 +96,131 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _pickResetDay() async {
     FocusScope.of(context).unfocus();
     var day = widget.store.monthlyResetDay;
-    final controller = FixedExtentScrollController(initialItem: day - 1);
     final picked = await showCupertinoModalPopup<int>(
       context: context,
-      builder: (ctx) {
-        final p = Palette.of(ctx);
-        return Container(
-          color: p.card,
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 300,
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, selectDay) {
+          final p = Palette.of(ctx);
+          return Container(
+            color: p.card,
+            child: SafeArea(
+              top: false,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
+                ),
+                child: SingleChildScrollView(
+                  primary: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      CupertinoButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(fontSize: 17, color: p.accentText),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Reset day',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: p.label,
-                            fontWeight: FontWeight.w600,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          CupertinoButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: p.accentText,
+                              ),
+                            ),
                           ),
-                        ),
+                          Expanded(
+                            child: Text(
+                              'Reset day',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: p.label,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          CupertinoButton(
+                            key: const Key('reset-day-save'),
+                            onPressed: () => Navigator.pop(ctx, day),
+                            child: Text(
+                              'Done',
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: p.accentText,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      CupertinoButton(
-                        key: const Key('reset-day-save'),
-                        onPressed: () => Navigator.pop(ctx, day),
-                        child: Text(
-                          'Done',
-                          style: TextStyle(fontSize: 17, color: p.accentText),
+                      Padding(
+                        key: const Key('reset-day-picker'),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        child: Column(
+                          children: [
+                            for (var row = 0; row < 5; row++)
+                              Row(
+                                children: [
+                                  for (var col = 0; col < 7; col++)
+                                    Expanded(
+                                      child: row * 7 + col + 1 > 31
+                                          ? const SizedBox(height: 48)
+                                          : Semantics(
+                                              key: Key(
+                                                'reset-day-${row * 7 + col + 1}',
+                                              ),
+                                              selected:
+                                                  day == row * 7 + col + 1,
+                                              label:
+                                                  'Reset on the ${ordinalDay(row * 7 + col + 1)}',
+                                              child: CupertinoButton(
+                                                padding: EdgeInsets.zero,
+                                                onPressed: () => selectDay(
+                                                  () => day = row * 7 + col + 1,
+                                                ),
+                                                child: Container(
+                                                  width: 38,
+                                                  height: 38,
+                                                  alignment: Alignment.center,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color:
+                                                        day == row * 7 + col + 1
+                                                        ? p.accent
+                                                        : null,
+                                                  ),
+                                                  child: Text(
+                                                    '${row * 7 + col + 1}',
+                                                    style: TextStyle(
+                                                      fontSize: 17,
+                                                      fontWeight:
+                                                          day ==
+                                                              row * 7 + col + 1
+                                                          ? FontWeight.w600
+                                                          : FontWeight.w400,
+                                                      color:
+                                                          day ==
+                                                              row * 7 + col + 1
+                                                          ? p.onAccent
+                                                          : p.label,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                ],
+                              ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  Expanded(
-                    child: CupertinoPicker(
-                      key: const Key('reset-day-picker'),
-                      scrollController: controller,
-                      itemExtent: 40,
-                      onSelectedItemChanged: (index) => day = index + 1,
-                      children: [
-                        for (var d = 1; d <= 31; d++)
-                          Center(
-                            child: Text(
-                              'Every month on the ${ordinalDay(d)}',
-                              style: TextStyle(fontSize: 17, color: p.label),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
-    controller.dispose();
     if (mounted && picked != null) widget.store.setMonthlyResetDay(picked);
   }
 
