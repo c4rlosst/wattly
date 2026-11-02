@@ -25,6 +25,7 @@ class WattlyStore extends ChangeNotifier {
   double ratePerKwh = 0;
   String currency = '\$';
   String currencyCode = 'USD';
+  int monthlyResetDay = 1;
   final List<Appliance> appliances = [];
   final List<UsageEntry> entries = [];
 
@@ -52,20 +53,34 @@ class WattlyStore extends ChangeNotifier {
     try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
       ratePerKwh = (data['rate'] as num?)?.toDouble() ?? 0;
+      final resetDay = data['monthlyResetDay'];
+      monthlyResetDay = resetDay is int && resetDay >= 1 && resetDay <= 31
+          ? resetDay
+          : 1;
       currency = data['currency'] as String? ?? currency;
       // Data saved before the picker existed has only a symbol.
-      currencyCode = data['currencyCode'] as String? ??
+      currencyCode =
+          data['currencyCode'] as String? ??
           currencyBySymbol(currency)?.code ??
           customCurrencyCode;
       _appearance.value =
           Appearance.values.asNameMap()[data['appearance']] ?? Appearance.light;
-      appliances.addAll((data['appliances'] as List? ?? [])
-          .map((e) => Appliance.fromJson(e as Map<String, dynamic>)));
-      entries.addAll((data['entries'] as List? ?? [])
-          .map((e) => UsageEntry.fromJson(e as Map<String, dynamic>)));
+      appliances.addAll(
+        (data['appliances'] as List? ?? []).map(
+          (e) => Appliance.fromJson(e as Map<String, dynamic>),
+        ),
+      );
+      entries.addAll(
+        (data['entries'] as List? ?? []).map(
+          (e) => UsageEntry.fromJson(e as Map<String, dynamic>),
+        ),
+      );
       readings
-        ..addAll((data['readings'] as List? ?? [])
-            .map((e) => MeterReading.fromJson(e as Map<String, dynamic>)))
+        ..addAll(
+          (data['readings'] as List? ?? []).map(
+            (e) => MeterReading.fromJson(e as Map<String, dynamic>),
+          ),
+        )
         ..sort(_byTime);
     } catch (_) {
       // Corrupt data: start fresh rather than crash on launch.
@@ -81,6 +96,7 @@ class WattlyStore extends ChangeNotifier {
       _key,
       jsonEncode({
         'rate': ratePerKwh,
+        'monthlyResetDay': monthlyResetDay,
         'currency': currency,
         'currencyCode': currencyCode,
         'appearance': appearance.name,
@@ -144,6 +160,13 @@ class WattlyStore extends ChangeNotifier {
     _commit();
   }
 
+  void setMonthlyResetDay(int value) {
+    RangeError.checkValueInInterval(value, 1, 31, 'monthlyResetDay');
+    if (value == monthlyResetDay) return;
+    monthlyResetDay = value;
+    _commit();
+  }
+
   /// Picks a listed currency, or a custom [symbol] when [code] is omitted.
   void setCurrency(String symbol, {String code = customCurrencyCode}) {
     currency = symbol;
@@ -169,14 +192,16 @@ class WattlyStore extends ChangeNotifier {
     required double hours,
     required DateTime time,
   }) {
-    entries.add(UsageEntry(
-      id: _newId(),
-      time: time,
-      label: label,
-      watts: watts,
-      hours: hours,
-      ratePerKwh: ratePerKwh,
-    ));
+    entries.add(
+      UsageEntry(
+        id: _newId(),
+        time: time,
+        label: label,
+        watts: watts,
+        hours: hours,
+        ratePerKwh: ratePerKwh,
+      ),
+    );
     _commit();
   }
 
@@ -200,8 +225,12 @@ class WattlyStore extends ChangeNotifier {
   /// Latest meter reading by time, if any.
   MeterReading? get latestReading => readings.isEmpty ? null : readings.last;
 
-  List<Bucket> bucketsFor(Period period) =>
-      usageBuckets(entries, period, DateTime.now());
+  List<Bucket> bucketsFor(Period period, {DateTime? now}) => usageBuckets(
+    entries,
+    period,
+    now ?? DateTime.now(),
+    resetDay: monthlyResetDay,
+  );
 
   double estimatedKwhSince(DateTime from) => estimatedKwh(entries, from);
   double estimatedCostSince(DateTime from) => estimatedCost(entries, from);

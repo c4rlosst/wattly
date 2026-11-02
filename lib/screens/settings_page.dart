@@ -28,7 +28,8 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     final s = widget.store;
     _rate = TextEditingController(
-        text: s.ratePerKwh == 0 ? '' : trimNumber(s.ratePerKwh));
+      text: s.ratePerKwh == 0 ? '' : trimNumber(s.ratePerKwh),
+    );
     // The price isn't saved on every keystroke; leaving the field saves it.
     _rateFocus.addListener(() {
       if (!_rateFocus.hasFocus) widget.store.flush();
@@ -63,8 +64,9 @@ class _SettingsPageState extends State<SettingsPage> {
               CupertinoTextField(
                 controller: watts,
                 placeholder: 'Power (watts)',
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ],
           ),
@@ -91,6 +93,81 @@ class _SettingsPageState extends State<SettingsPage> {
     if (result != null) widget.store.addAppliance(result.$1, result.$2);
   }
 
+  Future<void> _pickResetDay() async {
+    FocusScope.of(context).unfocus();
+    var day = widget.store.monthlyResetDay;
+    final controller = FixedExtentScrollController(initialItem: day - 1);
+    final picked = await showCupertinoModalPopup<int>(
+      context: context,
+      builder: (ctx) {
+        final p = Palette.of(ctx);
+        return Container(
+          color: p.card,
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 300,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: 17, color: p.accentText),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Reset day',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: p.label,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      CupertinoButton(
+                        key: const Key('reset-day-save'),
+                        onPressed: () => Navigator.pop(ctx, day),
+                        child: Text(
+                          'Done',
+                          style: TextStyle(fontSize: 17, color: p.accentText),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: CupertinoPicker(
+                      key: const Key('reset-day-picker'),
+                      scrollController: controller,
+                      itemExtent: 40,
+                      onSelectedItemChanged: (index) => day = index + 1,
+                      children: [
+                        for (var d = 1; d <= 31; d++)
+                          Center(
+                            child: Text(
+                              'Every month on the ${ordinalDay(d)}',
+                              style: TextStyle(fontSize: 17, color: p.label),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    if (mounted && picked != null) widget.store.setMonthlyResetDay(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
@@ -107,8 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               Group(
                 header: 'Electricity rate',
-                footer:
-                    'Check your dorm or utility bill. Past entries keep the rate they were logged with.',
+                footer: 'Check your dorm or utility bill. Past entries keep the rate they were logged with.',
                 children: [
                   Tappable(
                     key: const Key('currency-row'),
@@ -126,13 +202,16 @@ class _SettingsPageState extends State<SettingsPage> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  fontSize: 17, color: p.secondary),
+                                fontSize: 17,
+                                color: p.secondary,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
                           ChevronIcon(
-                              size: 14,
-                              color: p.secondary.withValues(alpha: 0.6)),
+                            size: 14,
+                            color: p.secondary.withValues(alpha: 0.6),
+                          ),
                         ],
                       ),
                     ),
@@ -143,9 +222,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(store.currency,
-                            style:
-                                TextStyle(fontSize: 17, color: p.secondary)),
+                        Text(
+                          store.currency,
+                          style: TextStyle(fontSize: 17, color: p.secondary),
+                        ),
                         const SizedBox(width: 4),
                         NumberField(
                           key: const Key('rate'),
@@ -156,9 +236,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           // Nothing on this screen depends on the price, so don't
                           // rebuild it on every keystroke; other tabs catch up
                           // when they are shown.
-                          onChanged: (v) => store.setRate(
-                              parseNumber(v) ?? 0,
-                              notify: false),
+                          onChanged: (v) =>
+                              store.setRate(parseNumber(v) ?? 0, notify: false),
                         ),
                       ],
                     ),
@@ -167,9 +246,39 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 24),
               Group(
-                header: 'Appearance',
+                header: 'Billing cycle',
                 footer:
-                    'Light is the default. Auto follows your phone or computer.',
+                    'Monthly totals start at midnight on this day. Shorter '
+                    'months use their last day. Your history is kept. For accurate '
+                    'meter totals, log a reading on your reset day.',
+                children: [
+                  Tappable(
+                    key: const Key('monthly-reset-row'),
+                    onTap: _pickResetDay,
+                    child: FormRow(
+                      label: 'Monthly reset',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            ordinalDay(store.monthlyResetDay),
+                            style: TextStyle(fontSize: 17, color: p.secondary),
+                          ),
+                          const SizedBox(width: 6),
+                          ChevronIcon(
+                            size: 14,
+                            color: p.secondary.withValues(alpha: 0.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Group(
+                header: 'Appearance',
+                footer: 'Light is the default. Auto follows your phone or computer.',
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(12),
@@ -200,17 +309,20 @@ class _SettingsPageState extends State<SettingsPage> {
                         color: CupertinoColors.systemRed,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 24),
-                        child: const Icon(CupertinoIcons.trash_fill,
-                            color: Colors.white),
+                        child: const Icon(
+                          CupertinoIcons.trash_fill,
+                          color: Colors.white,
+                        ),
                       ),
                       onDismissed: (_) => store.removeAppliance(a.id),
                       child: ColoredBox(
                         color: p.card,
                         child: FormRow(
                           label: a.name,
-                          trailing: Text('${a.watts.toStringAsFixed(0)} W',
-                              style: TextStyle(
-                                  fontSize: 17, color: p.secondary)),
+                          trailing: Text(
+                            '${a.watts.toStringAsFixed(0)} W',
+                            style: TextStyle(fontSize: 17, color: p.secondary),
+                          ),
                         ),
                       ),
                     ),
@@ -222,12 +334,19 @@ class _SettingsPageState extends State<SettingsPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
-                            Icon(CupertinoIcons.plus_circle_fill,
-                                size: 24, color: p.accentText),
+                            Icon(
+                              CupertinoIcons.plus_circle_fill,
+                              size: 24,
+                              color: p.accentText,
+                            ),
                             const SizedBox(width: 12),
-                            Text('Add device',
-                                style: TextStyle(
-                                    fontSize: 17, color: p.accentText)),
+                            Text(
+                              'Add device',
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: p.accentText,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -236,27 +355,36 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              Group(children: [
-                FormRow(
-                  label: 'Data stays on this phone',
-                  trailing:
-                      Icon(CupertinoIcons.checkmark_circle_fill,
-                          size: 22, color: p.green),
-                ),
-              ]),
+              Group(
+                children: [
+                  FormRow(
+                    label: 'Data stays on this phone',
+                    trailing: Icon(
+                      CupertinoIcons.checkmark_circle_fill,
+                      size: 22,
+                      color: p.green,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 32),
               Column(
                 children: [
                   const WattlyLogo(size: 64),
                   const SizedBox(height: 12),
-                  Text('Wattly',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: p.label)),
+                  Text(
+                    'Wattly',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: p.label,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text('Track your dorm’s electricity use.',
-                      style: TextStyle(fontSize: 13, color: p.secondary)),
+                  Text(
+                    'Track your dorm’s electricity use.',
+                    style: TextStyle(fontSize: 13, color: p.secondary),
+                  ),
                 ],
               ),
             ],

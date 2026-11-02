@@ -17,6 +17,27 @@ const _months = [
 ];
 const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+String ordinalDay(int day) {
+  final suffix = day >= 11 && day <= 13
+      ? 'th'
+      : switch (day % 10) {
+          1 => 'st',
+          2 => 'nd',
+          3 => 'rd',
+          _ => 'th',
+        };
+  return '$day$suffix';
+}
+
+/// Inclusive dates shown for a billing cycle whose end is exclusive.
+String cycleDateRange(DateTime start, DateTime end) {
+  final last = DateTime(end.year, end.month, end.day - 1);
+  final crossYear = start.year != last.year;
+  String label(DateTime d) =>
+      '${_months[d.month - 1]} ${d.day}${crossYear ? ', ${d.year}' : ''}';
+  return '${label(start)} – ${label(last)}';
+}
+
 String formatTime(DateTime t) {
   final hour = t.hour % 12 == 0 ? 12 : t.hour % 12;
   final minute = t.minute.toString().padLeft(2, '0');

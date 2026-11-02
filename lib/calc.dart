@@ -4,23 +4,47 @@ enum Period { today, week, month }
 
 extension PeriodLabel on Period {
   String get label => switch (this) {
-        Period.today => 'Today',
-        Period.week => 'This week',
-        Period.month => 'This month',
-      };
+    Period.today => 'Today',
+    Period.week => 'This week',
+    Period.month => 'This month',
+  };
 }
 
 /// Start of [period] relative to [now]. Weeks start on Monday.
-DateTime periodStart(Period period, DateTime now) {
+DateTime periodStart(Period period, DateTime now, {int resetDay = 1}) {
   return switch (period) {
     Period.today => DateTime(now.year, now.month, now.day),
     // Calendar arithmetic (the constructor rolls days over months), not
     // `subtract(Duration(days: n))`, which is off by an hour across a
     // daylight-saving change.
     Period.week => DateTime(now.year, now.month, now.day - (now.weekday - 1)),
-    Period.month => DateTime(now.year, now.month),
+    Period.month => billingCycleStart(now, resetDay),
   };
 }
+
+/// A monthly boundary, clamped to the last day in shorter months.
+DateTime billingBoundary(int year, int month, int resetDay) {
+  RangeError.checkValueInInterval(resetDay, 1, 31, 'resetDay');
+  final lastDay = DateTime(year, month + 1, 0).day;
+  return DateTime(year, month, resetDay > lastDay ? lastDay : resetDay);
+}
+
+DateTime billingCycleStart(DateTime now, int resetDay) {
+  final boundary = billingBoundary(now.year, now.month, resetDay);
+  return now.isBefore(boundary)
+      ? billingBoundary(now.year, now.month - 1, resetDay)
+      : boundary;
+}
+
+DateTime billingCycleEnd(DateTime start, int resetDay) =>
+    billingBoundary(start.year, start.month + 1, resetDay);
+
+// Count calendar days, not elapsed hours (which change across DST).
+int _calendarDays(DateTime from, DateTime to) => DateTime.utc(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
 
 double wattHoursToKwh(double watts, double hours) => watts * hours / 1000;
 
@@ -36,8 +60,12 @@ class Bucket {
 /// Estimated usage split into chart bars for [period]: four 6-hour blocks for
 /// today, one bar per weekday for the week, one per week for the month.
 List<Bucket> usageBuckets(
-    Iterable<UsageEntry> entries, Period period, DateTime now) {
-  final start = periodStart(period, now);
+  Iterable<UsageEntry> entries,
+  Period period,
+  DateTime now, {
+  int resetDay = 1,
+}) {
+  final start = periodStart(period, now, resetDay: resetDay);
   final List<String> labels;
   final int current;
   final int Function(DateTime) indexOf;
@@ -51,14 +79,14 @@ List<Bucket> usageBuckets(
       current = now.weekday - 1;
       indexOf = (t) => t.weekday - 1;
     case Period.month:
-      final days = DateTime(now.year, now.month + 1, 0).day;
+      final days = _calendarDays(start, billingCycleEnd(start, resetDay));
       labels = [for (var i = 1; i <= (days + 6) ~/ 7; i++) 'Wk $i'];
-      current = (now.day - 1) ~/ 7;
-      indexOf = (t) => (t.day - 1) ~/ 7;
+      current = _calendarDays(start, now) ~/ 7;
+      indexOf = (t) => _calendarDays(start, t) ~/ 7;
   }
   final sums = List.filled(labels.length, 0.0);
   for (final e in entries) {
-    if (e.time.isBefore(start)) continue;
+    if (e.time.isBefore(start) || e.time.isAfter(now)) continue;
     final i = indexOf(e.time);
     if (i >= 0 && i < sums.length) sums[i] += e.kwh;
   }

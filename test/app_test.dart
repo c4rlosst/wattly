@@ -70,6 +70,9 @@ void main() {
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
+    // Billing-cycle settings make the About block further down the list.
+    await tester.drag(find.byType(CustomScrollView).last, const Offset(0, -500));
+    await tester.pumpAndSettle();
     expect(find.byType(WattlyLogo), findsOneWidget);
     expect(find.text('Track your dorm’s electricity use.'), findsOneWidget);
     expect(tester.takeException(), isNull);

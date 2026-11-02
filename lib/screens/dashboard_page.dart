@@ -23,7 +23,8 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final store = widget.store;
     final p = Palette.of(context);
-    final from = periodStart(_period, DateTime.now());
+    final now = DateTime.now();
+    final from = periodStart(_period, now, resetDay: store.monthlyResetDay);
     final hasRate = store.ratePerKwh > 0;
 
     final estimated = store.estimatedKwhSince(from);
@@ -32,8 +33,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
     // Prefer the real meter when it has data; otherwise fall back to estimates.
     final headlineKwh = metered ?? estimated;
-    final headlineCost =
-        metered != null ? metered * store.ratePerKwh : estimatedCost;
+    final headlineCost = metered != null
+        ? metered * store.ratePerKwh
+        : estimatedCost;
     final latest = store.latestReading;
 
     return CustomScrollView(
@@ -45,7 +47,8 @@ class _DashboardPageState extends State<DashboardPage> {
           'Usage',
           leading: const BrandMark(),
           trailing: AddButton(
-              onPressed: () => showAddUsageSheet(context, store)),
+            onPressed: () => showAddUsageSheet(context, store),
+          ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -70,32 +73,53 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_period.label.toUpperCase(),
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.4,
-                            color: p.secondary)),
+                    Text(
+                      (_period == Period.month && store.monthlyResetDay != 1
+                              ? 'This cycle'
+                              : _period.label)
+                          .toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                        color: p.secondary,
+                      ),
+                    ),
+                    if (_period == Period.month) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        cycleDateRange(
+                          from,
+                          billingCycleEnd(from, store.monthlyResetDay),
+                        ),
+                        key: const Key('cycle-date-range'),
+                        style: TextStyle(fontSize: 13, color: p.secondary),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Text(formatKwhValue(headlineKwh),
-                            style: TextStyle(
-                                fontSize: 56,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1.5,
-                                color: p.label,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ])),
+                        Text(
+                          formatKwhValue(headlineKwh),
+                          style: TextStyle(
+                            fontSize: 56,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -1.5,
+                            color: p.label,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
                         const SizedBox(width: 6),
-                        Text('kWh',
-                            style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: p.secondary)),
+                        Text(
+                          'kWh',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: p.secondary,
+                          ),
+                        ),
                       ],
                     ),
                     Text(
@@ -103,12 +127,13 @@ class _DashboardPageState extends State<DashboardPage> {
                           ? '≈ ${formatMoney(store.currency, headlineCost)}'
                           : 'Set your rate in Settings to see cost',
                       style: TextStyle(
-                          fontSize: hasRate ? 20 : 15,
-                          fontWeight: FontWeight.w600,
-                          color: p.accentText),
+                        fontSize: hasRate ? 20 : 15,
+                        fontWeight: FontWeight.w600,
+                        color: p.accentText,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    UsageBars(buckets: store.bucketsFor(_period)),
+                    UsageBars(buckets: store.bucketsFor(_period, now: now)),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -126,8 +151,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             metered != null
                                 ? 'From meter readings'
                                 : 'Estimated from your devices',
-                            style:
-                                TextStyle(fontSize: 13, color: p.secondary),
+                            style: TextStyle(fontSize: 13, color: p.secondary),
                           ),
                         ),
                       ],
@@ -156,52 +180,70 @@ class _DashboardPageState extends State<DashboardPage> {
                       subtitle: metered == null
                           ? 'needs 2 readings'
                           : hasRate
-                              ? formatMoney(
-                                  store.currency, metered * store.ratePerKwh)
-                              : 'from meter',
+                          ? formatMoney(
+                              store.currency,
+                              metered * store.ratePerKwh,
+                            )
+                          : 'from meter',
                     ),
                   ),
                 ],
               ),
               if (latest != null) ...[
                 const SizedBox(height: 12),
-                Group(children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        IconTile(
-                            icon: CupertinoIcons.timer_fill, color: p.accent),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Meter',
+                Group(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          IconTile(
+                            icon: CupertinoIcons.timer_fill,
+                            color: p.accent,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Meter',
                                   style: TextStyle(
-                                      fontSize: 17, color: p.label)),
-                              Text(
+                                    fontSize: 17,
+                                    color: p.label,
+                                  ),
+                                ),
+                                Text(
                                   'Last reading: ${whenLabel(latest.time, DateTime.now())}',
                                   style: TextStyle(
-                                      fontSize: 13, color: p.secondary)),
-                              if (store.readings.length > 1)
-                                Text(
+                                    fontSize: 13,
+                                    color: p.secondary,
+                                  ),
+                                ),
+                                if (store.readings.length > 1)
+                                  Text(
                                     '+${formatKwh(latest.kwh - store.readings[store.readings.length - 2].kwh)} since previous',
                                     style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: p.green)),
-                            ],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: p.green,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        Text(formatKwh(latest.kwh),
-                            style:
-                                TextStyle(fontSize: 17, color: p.secondary)),
-                      ],
+                          Text(
+                            formatKwh(latest.kwh),
+                            style: TextStyle(fontSize: 17, color: p.secondary),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ],
             ],
           ),
@@ -212,8 +254,11 @@ class _DashboardPageState extends State<DashboardPage> {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile(
-      {required this.title, required this.value, required this.subtitle});
+  const _StatTile({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+  });
 
   final String title;
   final String value;
@@ -237,19 +282,25 @@ class _StatTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: p.label,
-                      fontFeatures: const [FontFeature.tabularFigures()])),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: p.label,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
               if (value != '—') ...[
                 const SizedBox(width: 4),
-                Text('kWh',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: p.secondary)),
+                Text(
+                  'kWh',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: p.secondary,
+                  ),
+                ),
               ],
             ],
           ),
