@@ -132,6 +132,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               'Reset day',
                               textAlign: TextAlign.center,
                               style: TextStyle(
+                                decoration: TextDecoration.none,
                                 fontSize: 17,
                                 color: p.label,
                                 fontWeight: FontWeight.w600,
