@@ -1,3 +1,4 @@
+import 'format.dart';
 import 'models.dart';
 
 enum Period { today, week, month }
@@ -50,11 +51,82 @@ double wattHoursToKwh(double watts, double hours) => watts * hours / 1000;
 
 /// One bar of the usage chart.
 class Bucket {
-  const Bucket(this.label, this.kwh, {this.isCurrent = false});
+  const Bucket(
+    this.label,
+    this.kwh, {
+    this.isCurrent = false,
+    this.hasData = true,
+    this.detailLabel,
+  });
 
   final String label;
   final double kwh;
   final bool isCurrent;
+  final bool hasData;
+  final String? detailLabel;
+}
+
+/// Shared boundaries for device logs and meter increases.
+class _ChartPeriod {
+  _ChartPeriod(this.period, this.now, int resetDay)
+    : start = periodStart(period, now, resetDay: resetDay) {
+    final end = billingCycleEnd(start, resetDay);
+    labels = switch (period) {
+      Period.today => const ['12a', '6a', '12p', '6p'],
+      Period.week => const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      Period.month => [
+        for (var i = 1; i <= (_calendarDays(start, end) + 6) ~/ 7; i++) 'Wk $i',
+      ],
+    };
+    details = [
+      for (var i = 0; i < labels.length; i++)
+        switch (period) {
+          Period.today => const [
+            '12 AM – 6 AM',
+            '6 AM – 12 PM',
+            '12 PM – 6 PM',
+            '6 PM – 12 AM',
+          ][i],
+          Period.week => dayLabel(
+            DateTime(start.year, start.month, start.day + i),
+            DateTime(0),
+          ),
+          Period.month => cycleDateRange(
+            DateTime(start.year, start.month, start.day + i * 7),
+            DateTime(
+                  start.year,
+                  start.month,
+                  start.day + (i + 1) * 7,
+                ).isAfter(end)
+                ? end
+                : DateTime(start.year, start.month, start.day + (i + 1) * 7),
+          ),
+        },
+    ];
+  }
+
+  final Period period;
+  final DateTime now;
+  final DateTime start;
+  late final List<String> labels;
+  late final List<String> details;
+
+  int indexOf(DateTime time) => switch (period) {
+    Period.today => time.hour ~/ 6,
+    Period.week => time.weekday - 1,
+    Period.month => _calendarDays(start, time) ~/ 7,
+  };
+
+  List<Bucket> buckets(List<double> sums, List<bool> logged) => [
+    for (var i = 0; i < labels.length; i++)
+      Bucket(
+        labels[i],
+        sums[i],
+        isCurrent: i == indexOf(now),
+        hasData: logged[i],
+        detailLabel: details[i],
+      ),
+  ];
 }
 
 /// Estimated usage split into chart bars for [period]: four 6-hour blocks for
@@ -65,35 +137,65 @@ List<Bucket> usageBuckets(
   DateTime now, {
   int resetDay = 1,
 }) {
-  final start = periodStart(period, now, resetDay: resetDay);
-  final List<String> labels;
-  final int current;
-  final int Function(DateTime) indexOf;
-  switch (period) {
-    case Period.today:
-      labels = const ['12a', '6a', '12p', '6p'];
-      current = now.hour ~/ 6;
-      indexOf = (t) => t.hour ~/ 6;
-    case Period.week:
-      labels = const ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-      current = now.weekday - 1;
-      indexOf = (t) => t.weekday - 1;
-    case Period.month:
-      final days = _calendarDays(start, billingCycleEnd(start, resetDay));
-      labels = [for (var i = 1; i <= (days + 6) ~/ 7; i++) 'Wk $i'];
-      current = _calendarDays(start, now) ~/ 7;
-      indexOf = (t) => _calendarDays(start, t) ~/ 7;
-  }
-  final sums = List.filled(labels.length, 0.0);
+  final chart = _ChartPeriod(period, now, resetDay);
+  final sums = List.filled(chart.labels.length, 0.0);
+  final logged = List.filled(sums.length, false);
   for (final e in entries) {
-    if (e.time.isBefore(start) || e.time.isAfter(now)) continue;
-    final i = indexOf(e.time);
-    if (i >= 0 && i < sums.length) sums[i] += e.kwh;
+    if (e.time.isBefore(chart.start) || e.time.isAfter(now)) continue;
+    final i = chart.indexOf(e.time);
+    if (i >= 0 && i < sums.length) {
+      sums[i] += e.kwh;
+      logged[i] = true;
+    }
   }
-  return [
-    for (var i = 0; i < labels.length; i++)
-      Bucket(labels[i], sums[i], isCurrent: i == current),
-  ];
+  return chart.buckets(sums, logged);
+}
+
+/// Meter increases grouped by the date the later reading was logged. We do not
+/// invent daily consumption between readings. Like the dashboard total, use the
+/// last reading before the period as the baseline unless one exists at its start.
+/// Null means there is no valid pair (or the meter decreased).
+List<Bucket>? meterUsageBuckets(
+  Iterable<MeterReading> readings,
+  Period period,
+  DateTime now, {
+  int resetDay = 1,
+}) {
+  final chart = _ChartPeriod(period, now, resetDay);
+  MeterReading? before;
+  final inside = <MeterReading>[];
+  for (final reading in readings) {
+    if (reading.time.isAfter(now)) continue;
+    if (reading.time.isBefore(chart.start)) {
+      if (before == null || reading.time.isAfter(before.time)) before = reading;
+    } else {
+      inside.add(reading);
+    }
+  }
+  inside.sort((a, b) => a.time.compareTo(b.time));
+  if (inside.isEmpty) return null;
+  var previous = inside.first.time == chart.start
+      ? inside.first
+      : before ?? inside.first;
+  final sums = List.filled(chart.labels.length, 0.0);
+  final logged = List.filled(sums.length, false);
+  var hasPair = false;
+  for (final reading in inside) {
+    if (identical(reading, previous)) continue;
+    // Two values at the same instant cannot describe a consumption interval.
+    if (reading.time == previous.time) {
+      if (reading.kwh != previous.kwh) return null;
+      continue;
+    }
+    final delta = reading.kwh - previous.kwh;
+    if (delta < 0) return null;
+    final index = chart.indexOf(reading.time);
+    sums[index] += delta;
+    logged[index] = true;
+    hasPair = true;
+    previous = reading;
+  }
+  return hasPair ? chart.buckets(sums, logged) : null;
 }
 
 /// Sum of estimated usage logged at or after [from].

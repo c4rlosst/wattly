@@ -29,7 +29,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final estimated = store.estimatedKwhSince(from);
     final estimatedCost = store.estimatedCostSince(from);
-    final metered = store.meteredKwhSince(from);
+    final meterBuckets = meterUsageBuckets(
+      store.readings,
+      _period,
+      now,
+      resetDay: store.monthlyResetDay,
+    );
+    final metered = meterBuckets?.fold<double>(0, (sum, b) => sum + b.kwh);
 
     // Prefer the real meter when it has data; otherwise fall back to estimates.
     final headlineKwh = metered ?? estimated;
@@ -133,7 +139,11 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    UsageBars(buckets: store.bucketsFor(_period, now: now)),
+                    UsageBars(
+                      key: ValueKey(_period),
+                      buckets:
+                          meterBuckets ?? store.bucketsFor(_period, now: now),
+                    ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -156,6 +166,13 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ],
                     ),
+                    if (meterBuckets != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Increases grouped by reading date.',
+                        style: TextStyle(fontSize: 12, color: p.secondary),
+                      ),
+                    ],
                   ],
                 ),
               ),

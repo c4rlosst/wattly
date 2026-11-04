@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'calc.dart';
+import 'format.dart';
 import 'icons.dart';
 import 'logo.dart';
 import 'theme.dart';
@@ -374,41 +375,211 @@ class Segmented<T extends Object> extends StatelessWidget {
 }
 
 /// Bar chart of usage buckets; the current bucket is highlighted.
-class UsageBars extends StatelessWidget {
+class UsageBars extends StatefulWidget {
   const UsageBars({super.key, required this.buckets});
 
   final List<Bucket> buckets;
 
   @override
+  State<UsageBars> createState() => _UsageBarsState();
+}
+
+class _UsageBarsState extends State<UsageBars> {
+  int? _selected;
+
+  @override
+  void didUpdateWidget(covariant UsageBars oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.buckets.length != widget.buckets.length ||
+        oldWidget.buckets.firstOrNull?.detailLabel !=
+            widget.buckets.firstOrNull?.detailLabel) {
+      _selected = null;
+    }
+  }
+
+  // Round up to a readable scale (e.g. 5, 10, 20, 50), leaving some headroom.
+  double _ceiling(double value) {
+    if (value <= 0) return 1;
+    final power = math
+        .pow(10, (math.log(value) / math.ln10).floor())
+        .toDouble();
+    final fraction = value / power;
+    return (fraction <= 1
+            ? 1
+            : fraction <= 2
+            ? 2
+            : fraction <= 5
+            ? 5
+            : 10) *
+        power;
+  }
+
+  String _tick(double value) {
+    if (value >= 1000) {
+      return '${trimNumber((value / 1000 * 10).round() / 10)}k';
+    }
+    return trimNumber(double.parse(value.toStringAsPrecision(3)));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
+    final buckets = widget.buckets;
     final maxKwh = buckets.fold<double>(0, (m, b) => b.kwh > m ? b.kwh : m);
-    return SizedBox(
-      height: 112,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final b in buckets)
+    final ceiling = _ceiling(maxKwh);
+    final selected = _selected == null ? null : buckets[_selected!];
+    final hasData = buckets.any((b) => b.hasData);
+    const plotHeight = 128.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Expanded(
+              child: Text(
+                selected?.detailLabel ?? selected?.label ?? 'Usage over time',
+                key: const Key('usage-chart-detail'),
+                style: TextStyle(fontSize: 12, color: p.secondary),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              selected == null
+                  ? 'kWh'
+                  : selected.hasData
+                  ? formatKwh(selected.kwh)
+                  : 'No logs',
+              key: const Key('usage-chart-value'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: p.label,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 36,
+              height: plotHeight,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 28,
-                    height: 6 + (maxKwh == 0 ? 0 : b.kwh / maxKwh * 74),
-                    decoration: BoxDecoration(
-                      color: b.isCurrent ? p.accent : p.accentSoft,
-                      borderRadius: BorderRadius.circular(6),
+                  for (final value in [ceiling, ceiling / 2, 0.0])
+                    Text(
+                      _tick(value),
+                      style: TextStyle(fontSize: 10, color: p.secondary),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(b.label,
-                      style: TextStyle(fontSize: 11, color: p.secondary)),
                 ],
               ),
             ),
-        ],
-      ),
+            Expanded(
+              child: Stack(
+                children: [
+                  SizedBox(
+                    height: plotHeight,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (var i = 0; i < 3; i++)
+                          Container(height: 0.5, color: p.separator),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (var i = 0; i < buckets.length; i++)
+                        Expanded(
+                          child: Semantics(
+                            button: true,
+                            selected: _selected == i,
+                            label:
+                                '${buckets[i].detailLabel ?? buckets[i].label}, '
+                                '${buckets[i].hasData ? formatKwh(buckets[i].kwh) : 'No logs'}',
+                            child: Tappable(
+                              onTap: () => setState(() => _selected = i),
+                              child: ExcludeSemantics(
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                      height: plotHeight,
+                                      child: Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: Container(
+                                          key: Key('usage-bar-$i'),
+                                          width: 24,
+                                          height: buckets[i].kwh > 0
+                                              ? math.max(
+                                                  3,
+                                                  buckets[i].kwh /
+                                                      ceiling *
+                                                      plotHeight,
+                                                )
+                                              : 2,
+                                          decoration: BoxDecoration(
+                                            color:
+                                                !buckets[i].hasData ||
+                                                    buckets[i].kwh == 0
+                                                ? p.fill
+                                                : _selected == i ||
+                                                      (_selected == null &&
+                                                          buckets[i].isCurrent)
+                                                ? p.accent
+                                                : p.accentSoft,
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                  top: Radius.circular(5),
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      buckets[i].label,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight:
+                                            _selected == i ||
+                                                buckets[i].isCurrent
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        color: _selected == i
+                                            ? p.accentText
+                                            : p.secondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (!hasData)
+          Text(
+            'Log usage to start your chart.',
+            style: TextStyle(fontSize: 12, color: p.secondary),
+          )
+        else
+          Text(
+            'Tap a bar to see usage.',
+            style: TextStyle(fontSize: 12, color: p.secondary),
+          ),
+      ],
     );
   }
 }
