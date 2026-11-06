@@ -49,7 +49,23 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Wattly">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <script>
+    // iOS chooses this image when Wattly is added to the Home Screen.
+    (function () {
+      var icon = document.querySelector('link[rel="apple-touch-icon"]');
+      var appearance = window.matchMedia('(prefers-color-scheme: dark)');
+      function updateTouchIcon() {
+        icon.href = appearance.matches
+          ? 'icons/apple-touch-icon-dark.png'
+          : 'icons/apple-touch-icon.png';
+      }
+      updateTouchIcon();
+      if (appearance.addEventListener) {
+        appearance.addEventListener('change', updateTouchIcon);
+      }
+    })();
+  </script>
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>

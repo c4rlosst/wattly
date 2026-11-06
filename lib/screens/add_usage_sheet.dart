@@ -55,6 +55,7 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   bool _saving = false;
   DateTime _time = DateTime.now();
   String? _error;
+  bool _scanPending = false;
   bool _scanning = false;
   String? _scanNote;
 
@@ -74,7 +75,9 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
   /// Takes a photo of the meter and reads the number off it, on this phone.
   /// The number only fills the field; the student still checks it.
   Future<void> _scan() async {
-    if (_scanning) return;
+    if (_scanPending) return;
+    // Lock before asking for camera access, including while the prompt is open.
+    _scanPending = true;
     setState(() => _scanNote = null);
     try {
       final text = await scanMeter(() {
@@ -101,6 +104,8 @@ class _AddUsageSheetState extends State<_AddUsageSheet> {
         _scanNote =
             'Couldn’t load the photo reader. Connect to the internet once and try again, or type it.';
       });
+    } finally {
+      _scanPending = false;
     }
   }
 
